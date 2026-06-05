@@ -111,15 +111,12 @@ export default function SellerDashboardScreen() {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            const { error, count } = await supabase
+            const { error } = await supabase
               .from('listings')
-              .delete({ count: 'exact' })
-              .eq('id', item.id)
-              .eq('seller_id', session!.user.id);
+              .delete()
+              .eq('id', item.id);
             if (error) {
-              Alert.alert('Error', error.message);
-            } else if (count === 0) {
-              Alert.alert('Error', 'Could not delete listing — permission denied.');
+              Alert.alert('Delete Failed', error.message);
             } else {
               setListings((prev) => prev.filter((l) => l.id !== item.id));
               setStats((prev) => ({

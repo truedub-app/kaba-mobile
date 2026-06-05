@@ -142,20 +142,17 @@ export default function ListingDetailScreen() {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            if (!id || !session) return;
+            if (!id) return;
             setDeleting(true);
-            const { error, count } = await supabase
+            const { error } = await supabase
               .from('listings')
-              .delete({ count: 'exact' })
-              .eq('id', id)
-              .eq('seller_id', session.user.id);
+              .delete()
+              .eq('id', id);
             setDeleting(false);
             if (error) {
-              Alert.alert('Error', error.message);
-            } else if (count === 0) {
-              Alert.alert('Error', 'Could not delete listing — permission denied.');
+              Alert.alert('Delete Failed', error.message);
             } else {
-              router.navigate('/(tabs)/seller-dashboard');
+              router.back();
             }
           },
         },
