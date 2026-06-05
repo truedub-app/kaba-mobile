@@ -20,20 +20,17 @@ const MAX_IMAGES = 10;
 const { width: W } = Dimensions.get('window');
 const IMG_SIZE = (W - 32 - 8 * 2) / 3;
 
-async function uploadImage(uri: string, userId: string): Promise<string | null> {
-  try {
-    const ext = uri.split('.').pop()?.toLowerCase() ?? 'jpg';
-    const path = `listings/${userId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-    const resp = await fetch(uri);
-    const blob = await resp.blob();
-    const { data, error } = await supabase.storage
-      .from('listing-images')
-      .upload(path, blob, { contentType: ext === 'png' ? 'image/png' : 'image/jpeg' });
-    if (error) return null;
-    return supabase.storage.from('listing-images').getPublicUrl(data.path).data.publicUrl;
-  } catch {
-    return null;
-  }
+async function uploadImage(uri: string, userId: string): Promise<string> {
+  // expo-image-picker with quality<1 always outputs JPEG; use jpg for all uploads
+  const path = `listings/${userId}/${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`;
+  const resp = await fetch(uri);
+  if (!resp.ok) throw new Error(`Failed to read image: ${resp.status}`);
+  const arrayBuffer = await resp.arrayBuffer();
+  const { data, error } = await supabase.storage
+    .from('listing-images')
+    .upload(path, arrayBuffer, { contentType: 'image/jpeg' });
+  if (error) throw new Error(error.message);
+  return supabase.storage.from('listing-images').getPublicUrl(data.path).data.publicUrl;
 }
 
 export default function CreateListingScreen() {
@@ -115,11 +112,14 @@ export default function CreateListingScreen() {
     try {
       const userId = session.user.id;
 
-      // Upload images
+      // Upload images — throw immediately if any fail
       const uploadedUrls: string[] = [];
-      for (const uri of imageUris) {
-        const url = await uploadImage(uri, userId);
-        if (url) uploadedUrls.push(url);
+      for (let i = 0; i < imageUris.length; i++) {
+        try {
+          uploadedUrls.push(await uploadImage(imageUris[i], userId));
+        } catch (uploadErr: any) {
+          throw new Error(`Image ${i + 1} failed to upload: ${uploadErr.message}`);
+        }
       }
 
       const expiresAt = new Date();
@@ -148,8 +148,8 @@ export default function CreateListingScreen() {
       if (error) throw error;
 
       Alert.alert('Listing Created', 'Your listing is now live!', [
-        { text: 'View Listing', onPress: () => router.replace(`/listing/${data.id}`) },
-        { text: 'Go to Dashboard', onPress: () => router.replace('/(tabs)/seller-dashboard') },
+        { text: 'View Listing', onPress: () => router.navigate(`/listing/${data.id}`) },
+        { text: 'Dashboard', onPress: () => router.navigate('/(tabs)/seller-dashboard') },
       ]);
     } catch (err: any) {
       Alert.alert('Error', err.message ?? 'Failed to create listing. Please try again.');

@@ -148,7 +148,7 @@ export default function ListingDetailScreen() {
             if (error) {
               Alert.alert('Error', 'Failed to delete listing.');
             } else {
-              router.replace('/(tabs)/seller-dashboard');
+              router.navigate('/(tabs)/seller-dashboard');
             }
           },
         },

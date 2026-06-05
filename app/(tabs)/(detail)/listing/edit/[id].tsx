@@ -20,20 +20,16 @@ const MAX_IMAGES = 10;
 const { width: W } = Dimensions.get('window');
 const IMG_SIZE = (W - 32 - 8 * 2) / 3;
 
-async function uploadImage(uri: string, userId: string): Promise<string | null> {
-  try {
-    const ext = uri.split('.').pop()?.toLowerCase() ?? 'jpg';
-    const path = `listings/${userId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-    const resp = await fetch(uri);
-    const blob = await resp.blob();
-    const { data, error } = await supabase.storage
-      .from('listing-images')
-      .upload(path, blob, { contentType: ext === 'png' ? 'image/png' : 'image/jpeg' });
-    if (error) return null;
-    return supabase.storage.from('listing-images').getPublicUrl(data.path).data.publicUrl;
-  } catch {
-    return null;
-  }
+async function uploadImage(uri: string, userId: string): Promise<string> {
+  const path = `listings/${userId}/${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`;
+  const resp = await fetch(uri);
+  if (!resp.ok) throw new Error(`Failed to read image: ${resp.status}`);
+  const arrayBuffer = await resp.arrayBuffer();
+  const { data, error } = await supabase.storage
+    .from('listing-images')
+    .upload(path, arrayBuffer, { contentType: 'image/jpeg' });
+  if (error) throw new Error(error.message);
+  return supabase.storage.from('listing-images').getPublicUrl(data.path).data.publicUrl;
 }
 
 export default function EditListingScreen() {
@@ -126,11 +122,14 @@ export default function EditListingScreen() {
     try {
       const userId = session!.user.id;
 
-      // Upload new images
+      // Upload new images — throw immediately if any fail
       const uploadedNew: string[] = [];
-      for (const uri of newImageUris) {
-        const url = await uploadImage(uri, userId);
-        if (url) uploadedNew.push(url);
+      for (let i = 0; i < newImageUris.length; i++) {
+        try {
+          uploadedNew.push(await uploadImage(newImageUris[i], userId));
+        } catch (uploadErr: any) {
+          throw new Error(`Image ${i + 1} failed to upload: ${uploadErr.message}`);
+        }
       }
 
       const allImages = [...existingImages, ...uploadedNew];
@@ -154,7 +153,7 @@ export default function EditListingScreen() {
       if (error) throw error;
 
       Alert.alert('Listing Updated', 'Your changes have been saved.', [
-        { text: 'View Listing', onPress: () => router.replace(`/listing/${id}`) },
+        { text: 'View Listing', onPress: () => router.navigate(`/listing/${id}`) },
         { text: 'OK', onPress: () => router.back() },
       ]);
     } catch (err: any) {
