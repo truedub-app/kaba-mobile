@@ -95,12 +95,30 @@ export function AppHeader({ leftSlot }: Props = {}) {
               >
                 <Text style={styles.menuItemText}>Saved Listings</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.menuItem}
-                onPress={() => { setMenuVisible(false); router.push('/(tabs)/seller-dashboard'); }}
-              >
-                <Text style={styles.menuItemText}>Seller Dashboard</Text>
-              </TouchableOpacity>
+              {/* Seller-aware menu item */}
+              {profile?.role === 'seller' || profile?.role === 'admin' ? (
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => { setMenuVisible(false); router.push('/(tabs)/seller-dashboard'); }}
+                >
+                  <Text style={styles.menuItemText}>Seller Dashboard</Text>
+                </TouchableOpacity>
+              ) : profile?.seller_status === 'pending' ? (
+                <View style={styles.menuItem}>
+                  <Text style={[styles.menuItemText, { color: '#f59e0b' }]}>
+                    Application Pending…
+                  </Text>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => { setMenuVisible(false); router.push('/seller/apply'); }}
+                >
+                  <Text style={[styles.menuItemText, { color: '#15803d', fontWeight: '600' }]}>
+                    Become a Seller
+                  </Text>
+                </TouchableOpacity>
+              )}
               {profile?.role === 'admin' && (
                 <TouchableOpacity style={styles.menuItem}>
                   <Text style={styles.menuItemText}>Admin Dashboard</Text>

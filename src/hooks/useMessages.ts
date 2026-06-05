@@ -53,7 +53,10 @@ export function useConversations(userId: string | null | undefined) {
         },
         () => refresh()
       )
-      .subscribe();
+      // Requires Realtime enabled on `conversations` in Supabase Dashboard → Database → Replication
+      .subscribe((status) => {
+        if (status === 'CHANNEL_ERROR') refresh();
+      });
 
     return () => {
       supabase.removeChannel(channel);
@@ -124,7 +127,10 @@ export function useChat(conversationId: string, currentUserId: string | null | u
           }
         }
       )
-      .subscribe();
+      // Requires Realtime enabled on `messages` in Supabase Dashboard → Database → Replication
+      .subscribe((status) => {
+        if (status === 'CHANNEL_ERROR') load();
+      });
 
     return () => {
       supabase.removeChannel(channel);

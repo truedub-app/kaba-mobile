@@ -12,7 +12,6 @@ import {
   Alert,
 } from 'react-native';
 import { useLocalSearchParams, useNavigation } from 'expo-router';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { MessageBubble } from '@/components/MessageBubble';
@@ -24,7 +23,6 @@ import { supabase } from '@/src/lib/supabase';
 export default function ChatScreen() {
   const { id: conversationId } = useLocalSearchParams<{ id: string }>();
   const navigation = useNavigation();
-  const insets = useSafeAreaInsets();
   const session = useAuthStore((s) => s.session);
   const currentUserId = session?.user?.id ?? null;
 
@@ -164,8 +162,8 @@ export default function ChatScreen() {
         />
       )}
 
-      {/* Input bar */}
-      <View style={[styles.inputBar, { paddingBottom: insets.bottom > 0 ? insets.bottom : 8 }]}>
+      {/* Input bar — AppTabBar in root layout handles the bottom safe area */}
+      <View style={styles.inputBar}>
         <TouchableOpacity
           style={styles.attachBtn}
           onPress={handleImagePick}
@@ -231,6 +229,7 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 12,
     paddingTop: 10,
+    paddingBottom: 8,
     borderTopWidth: 1,
     borderTopColor: '#f3f4f6',
     backgroundColor: '#fff',

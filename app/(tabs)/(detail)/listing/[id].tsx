@@ -10,6 +10,8 @@ import {
   Alert,
   Linking,
   Dimensions,
+  Modal,
+  TextInput,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -64,6 +66,13 @@ export default function ListingDetailScreen() {
   const [favorited, setFavorited] = useState(false);
   const [togglingFav, setTogglingFav] = useState(false);
   const [startingChat, setStartingChat] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  // Write review modal
+  const [reviewVisible, setReviewVisible] = useState(false);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [submittingReview, setSubmittingReview] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -120,6 +129,59 @@ export default function ListingDetailScreen() {
       router.push(`/chat/${conversationId}`);
     } else {
       Alert.alert('Error', 'Could not start conversation. Please try again.');
+    }
+  };
+
+  const handleDeleteListing = () => {
+    Alert.alert(
+      'Delete Listing',
+      `Are you sure you want to delete "${listing?.title}"? This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setDeleting(true);
+            const { error } = await supabase.from('listings').delete().eq('id', id);
+            setDeleting(false);
+            if (error) {
+              Alert.alert('Error', 'Failed to delete listing.');
+            } else {
+              router.replace('/(tabs)/seller-dashboard');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleSubmitReview = async () => {
+    if (!session || !listing) return;
+    setSubmittingReview(true);
+    const { error } = await supabase.from('reviews').insert({
+      reviewer_id: session.user.id,
+      seller_id: listing.seller_id,
+      listing_id: listing.id,
+      rating: reviewRating,
+      comment: reviewComment.trim() || null,
+    });
+    setSubmittingReview(false);
+    if (error) {
+      Alert.alert('Error', error.code === '23505' ? 'You already reviewed this listing.' : error.message);
+    } else {
+      setReviewVisible(false);
+      setReviewComment('');
+      setReviewRating(5);
+      // Refresh reviews
+      supabase
+        .from('reviews')
+        .select('*, reviewer:profiles!reviews_reviewer_id_fkey(id, full_name, avatar_url)')
+        .eq('seller_id', listing.seller_id)
+        .order('created_at', { ascending: false })
+        .limit(5)
+        .then(({ data }) => { if (data) setReviews(data as Review[]); });
+      Alert.alert('Thank you!', 'Your review has been submitted.');
     }
   };
 
@@ -273,10 +335,15 @@ export default function ListingDetailScreen() {
           <View style={styles.card}>
             <View style={styles.reviewsHeader}>
               <Text style={styles.cardTitle}>Reviews</Text>
-              <TouchableOpacity style={styles.writeReviewBtn}>
-                <Ionicons name="add" size={14} color="#15803d" />
-                <Text style={styles.writeReviewText}>Write a review</Text>
-              </TouchableOpacity>
+              {!isOwn && session && (
+                <TouchableOpacity
+                  style={styles.writeReviewBtn}
+                  onPress={() => setReviewVisible(true)}
+                >
+                  <Ionicons name="add" size={14} color="#15803d" />
+                  <Text style={styles.writeReviewText}>Write a review</Text>
+                </TouchableOpacity>
+              )}
             </View>
             {/* Overall */}
             <View style={styles.ratingOverall}>
@@ -322,6 +389,40 @@ export default function ListingDetailScreen() {
                 )}
               </View>
             ))}
+          </View>
+        )}
+
+        {/* ── Owner Actions ── */}
+        {isOwn && (
+          <View style={styles.ownerActions}>
+            <TouchableOpacity
+              style={styles.ownerBtn}
+              onPress={() => router.push(`/listing/edit/${id}`)}
+            >
+              <Ionicons name="create-outline" size={18} color="#374151" />
+              <Text style={styles.ownerBtnText}>Edit</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.ownerBtn, styles.ownerBtnBoost]}
+              onPress={() => router.push(`/listing/boost/${id}`)}
+            >
+              <Ionicons name="flash-outline" size={18} color="#d97706" />
+              <Text style={[styles.ownerBtnText, { color: '#d97706' }]}>Boost</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.ownerBtn, styles.ownerBtnDelete]}
+              onPress={handleDeleteListing}
+              disabled={deleting}
+            >
+              {deleting ? (
+                <ActivityIndicator size="small" color="#ef4444" />
+              ) : (
+                <>
+                  <Ionicons name="trash-outline" size={18} color="#ef4444" />
+                  <Text style={[styles.ownerBtnText, { color: '#ef4444' }]}>Delete</Text>
+                </>
+              )}
+            </TouchableOpacity>
           </View>
         )}
 
@@ -407,6 +508,70 @@ export default function ListingDetailScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* ── Write Review Modal ── */}
+      <Modal
+        visible={reviewVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setReviewVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity
+            style={styles.modalBackdrop}
+            activeOpacity={1}
+            onPress={() => setReviewVisible(false)}
+          />
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Write a Review</Text>
+              <TouchableOpacity onPress={() => setReviewVisible(false)}>
+                <Ionicons name="close" size={22} color="#374151" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Star rating */}
+            <Text style={styles.ratingLabel}>Your Rating</Text>
+            <View style={styles.starRow}>
+              {[1, 2, 3, 4, 5].map((s) => (
+                <TouchableOpacity key={s} onPress={() => setReviewRating(s)} hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}>
+                  <Ionicons
+                    name={s <= reviewRating ? 'star' : 'star-outline'}
+                    size={36}
+                    color="#fbbf24"
+                  />
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Comment */}
+            <Text style={styles.ratingLabel}>Comment (optional)</Text>
+            <TextInput
+              style={styles.reviewInput}
+              value={reviewComment}
+              onChangeText={setReviewComment}
+              placeholder="Share your experience with this seller…"
+              placeholderTextColor="#9ca3af"
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+            />
+
+            <TouchableOpacity
+              style={[styles.submitReviewBtn, submittingReview && { opacity: 0.5 }]}
+              onPress={handleSubmitReview}
+              disabled={submittingReview}
+              activeOpacity={0.85}
+            >
+              {submittingReview ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.submitReviewText}>Submit Review</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -625,4 +790,64 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginBottom: 10,
   },
+
+  /* Owner actions */
+  ownerActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginHorizontal: 16,
+    marginBottom: 12,
+  },
+  ownerBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderWidth: 1.5,
+    borderColor: '#e5e7eb',
+    borderRadius: 12,
+    paddingVertical: 11,
+    backgroundColor: '#fff',
+  },
+  ownerBtnBoost: { borderColor: '#fde68a', backgroundColor: '#fffbeb' },
+  ownerBtnDelete: { borderColor: '#fecaca', backgroundColor: '#fef2f2' },
+  ownerBtnText: { fontSize: 13, fontWeight: '700', color: '#374151' },
+
+  /* Write review modal */
+  modalOverlay: { flex: 1, justifyContent: 'flex-end' },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' },
+  modalSheet: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    paddingBottom: 36,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  modalTitle: { fontSize: 17, fontWeight: '700', color: '#111827' },
+  ratingLabel: { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 10 },
+  starRow: { flexDirection: 'row', gap: 8, marginBottom: 20 },
+  reviewInput: {
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 14,
+    color: '#111827',
+    minHeight: 100,
+    marginBottom: 16,
+  },
+  submitReviewBtn: {
+    backgroundColor: '#15803d',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  submitReviewText: { color: '#fff', fontWeight: '700', fontSize: 15 },
 });

@@ -131,6 +131,49 @@ export interface ListingFilters {
   featured?: boolean;
 }
 
+export const IMPORT_COUNTRIES = [
+  "China",
+  "Turkey",
+  "France",
+  "Germany",
+  "Italy",
+  "Spain",
+  "UAE",
+  "Saudi Arabia",
+  "Morocco",
+  "Tunisia",
+  "Egypt",
+  "Japan",
+  "South Korea",
+  "USA",
+  "UK",
+  "Portugal",
+  "Belgium",
+  "Netherlands",
+  "Algeria",
+] as const;
+
+export type ImportCountry = (typeof IMPORT_COUNTRIES)[number];
+
+export interface SellerApplication {
+  id: string;
+  user_id: string;
+  seller_type: SellerType;
+  applicant_name: string | null;
+  whatsapp_number: string | null;
+  residence_country: string | null;
+  document_url: string;
+  document_name: string | null;
+  document_size_kb: number | null;
+  status: ApplicationStatus;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+  user?: Profile;
+}
+
 export const ALGERIAN_CITIES = [
   "Algiers",
   "Oran",

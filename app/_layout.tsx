@@ -4,6 +4,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
 import { initAuth, useAuthStore } from '@/src/hooks/useAuth';
+import { AppTabBar } from '@/components/AppTabBar';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -24,34 +25,12 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <StatusBar style="dark" />
-      <Stack>
+      <Stack style={{ flex: 1 }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-        <Stack.Screen
-          name="listing/[id]"
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
-          name="chat/[id]"
-          options={{
-            headerBackTitle: '',
-            headerTintColor: '#15803d',
-            headerShadowVisible: false,
-            headerStyle: { backgroundColor: '#fff' },
-          }}
-        />
-        <Stack.Screen
-          name="user/[id]"
-          options={{
-            title: 'Profile',
-            headerBackTitle: '',
-            headerTintColor: '#15803d',
-            headerShadowVisible: false,
-            headerStyle: { backgroundColor: '#fff' },
-          }}
-        />
         <Stack.Screen name="+not-found" />
       </Stack>
+      <AppTabBar />
     </GestureHandlerRootView>
   );
 }
