@@ -68,6 +68,9 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     flowType: 'pkce',
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: false,
+    // Web: let the client auto-detect ?code= after the OAuth redirect so the
+    // page-reload flow works without a popup.
+    // Native: we call exchangeCodeForSession manually via expo-web-browser.
+    detectSessionInUrl: Platform.OS === 'web',
   },
 });

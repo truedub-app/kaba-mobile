@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { Platform } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import { supabase } from '@/src/lib/supabase';
@@ -45,6 +46,21 @@ export const useAuthStore = create<AuthStore>((set) => ({
   },
 
   signInWithGoogle: async () => {
+    // ── Web (Expo web / browser) ─────────────────────────────────────────────
+    // Use a plain browser redirect. After Google → Supabase → redirect back,
+    // the Supabase client auto-detects ?code= (detectSessionInUrl: true on web)
+    // and fires SIGNED_IN via onAuthStateChange. No popup needed.
+    if (Platform.OS === 'web') {
+      const redirectTo = typeof window !== 'undefined' ? window.location.origin : '';
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo },
+      });
+      return error?.message ?? null;
+    }
+
+    // ── Native (iOS / Android) ───────────────────────────────────────────────
+    // Open an in-app browser, intercept the redirect, exchange the code manually.
     const redirectTo = Linking.createURL('');
 
     const { data, error } = await supabase.auth.signInWithOAuth({
@@ -60,7 +76,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
       const { error: sessionError } = await supabase.auth.exchangeCodeForSession(result.url);
       return sessionError?.message ?? null;
     }
-    if (result.type === 'cancel') return null; // user cancelled, not an error
+    if (result.type === 'cancel') return null;
     return 'Google sign-in failed';
   },
 
