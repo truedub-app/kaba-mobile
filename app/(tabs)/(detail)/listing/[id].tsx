@@ -144,13 +144,16 @@ export default function ListingDetailScreen() {
           onPress: async () => {
             if (!id) return;
             setDeleting(true);
-            const { error } = await supabase
+            const { data: deleted, error } = await supabase
               .from('listings')
               .delete()
-              .eq('id', id);
+              .eq('id', id)
+              .select('id');   // returns deleted rows; empty = RLS blocked silently
             setDeleting(false);
             if (error) {
               Alert.alert('Delete Failed', error.message);
+            } else if (!deleted?.length) {
+              Alert.alert('Delete Failed', 'No rows deleted — your session may have expired or RLS denied it. Try signing out and back in.');
             } else {
               router.back();
             }

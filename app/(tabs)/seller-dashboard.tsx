@@ -111,12 +111,15 @@ export default function SellerDashboardScreen() {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            const { error } = await supabase
+            const { data: deleted, error } = await supabase
               .from('listings')
               .delete()
-              .eq('id', item.id);
+              .eq('id', item.id)
+              .select('id');   // returns deleted rows; empty = RLS blocked silently
             if (error) {
               Alert.alert('Delete Failed', error.message);
+            } else if (!deleted?.length) {
+              Alert.alert('Delete Failed', 'No rows deleted — your session may have expired or RLS denied it. Try signing out and back in.');
             } else {
               setListings((prev) => prev.filter((l) => l.id !== item.id));
               setStats((prev) => ({
