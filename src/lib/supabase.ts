@@ -65,6 +65,7 @@ const storage = Platform.OS === 'web' ? webStorage : makeNativeStorage();
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     storage,
+    flowType: 'pkce',
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
