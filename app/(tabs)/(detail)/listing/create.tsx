@@ -147,10 +147,8 @@ export default function CreateListingScreen() {
 
       if (error) throw error;
 
-      Alert.alert('Listing Created', 'Your listing is now live!', [
-        { text: 'View Listing', onPress: () => router.navigate(`/listing/${data.id}`) },
-        { text: 'Dashboard', onPress: () => router.navigate('/(tabs)/seller-dashboard') },
-      ]);
+      // Navigate immediately — seller dashboard useFocusEffect will pick up the new listing
+      router.navigate(`/listing/${data.id}`);
     } catch (err: any) {
       Alert.alert('Error', err.message ?? 'Failed to create listing. Please try again.');
     } finally {
