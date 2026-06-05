@@ -67,6 +67,7 @@ export default function ListingDetailScreen() {
   const [togglingFav, setTogglingFav] = useState(false);
   const [startingChat, setStartingChat] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   // Write review modal
   const [reviewVisible, setReviewVisible] = useState(false);
@@ -132,35 +133,32 @@ export default function ListingDetailScreen() {
     }
   };
 
-  const handleDeleteListing = () => {
-    Alert.alert(
-      'Delete Listing',
-      `Are you sure you want to delete "${listing?.title}"? This cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            if (!id) return;
-            setDeleting(true);
-            const { data: deleted, error } = await supabase
-              .from('listings')
-              .delete()
-              .eq('id', id)
-              .select('id');   // returns deleted rows; empty = RLS blocked silently
-            setDeleting(false);
-            if (error) {
-              Alert.alert('Delete Failed', error.message);
-            } else if (!deleted?.length) {
-              Alert.alert('Delete Failed', 'No rows deleted — your session may have expired or RLS denied it. Try signing out and back in.');
-            } else {
-              router.back();
-            }
-          },
-        },
-      ]
-    );
+  const handleDeleteListing = async () => {
+    if (!id) return;
+    setDeleting(true);
+    try {
+      // Use live getUser() — never rely on cached state for mutations
+      const { data: { user }, error: authErr } = await supabase.auth.getUser();
+      if (authErr || !user) {
+        Alert.alert('Signed Out', 'Your session expired. Please sign in again.');
+        router.push('/(auth)/login');
+        return;
+      }
+      const { data: deleted, error } = await supabase
+        .from('listings')
+        .delete()
+        .eq('id', id)
+        .select('id');
+      if (error) {
+        Alert.alert('Delete Failed', error.message);
+      } else if (!deleted?.length) {
+        Alert.alert('Delete Failed', `uid=${user.id.slice(0,8)} — RLS blocked. Ensure you own this listing.`);
+      } else {
+        router.back();
+      }
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const handleSubmitReview = async () => {
@@ -416,20 +414,34 @@ export default function ListingDetailScreen() {
               <Ionicons name="flash-outline" size={18} color="#d97706" />
               <Text style={[styles.ownerBtnText, { color: '#d97706' }]}>Boost</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.ownerBtn, styles.ownerBtnDelete]}
-              onPress={handleDeleteListing}
-              disabled={deleting}
-            >
-              {deleting ? (
-                <ActivityIndicator size="small" color="#ef4444" />
-              ) : (
-                <>
-                  <Ionicons name="trash-outline" size={18} color="#ef4444" />
-                  <Text style={[styles.ownerBtnText, { color: '#ef4444' }]}>Delete</Text>
-                </>
-              )}
-            </TouchableOpacity>
+            {confirmDelete ? (
+              // Two-tap confirm — no Alert.alert needed (works on web + native)
+              <>
+                <TouchableOpacity
+                  style={[styles.ownerBtn, styles.ownerBtnDelete, { flex: 1.5 }]}
+                  onPress={handleDeleteListing}
+                  disabled={deleting}
+                >
+                  {deleting
+                    ? <ActivityIndicator size="small" color="#ef4444" />
+                    : <Text style={[styles.ownerBtnText, { color: '#ef4444' }]}>Confirm Delete</Text>}
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.ownerBtn}
+                  onPress={() => setConfirmDelete(false)}
+                >
+                  <Ionicons name="close" size={18} color="#374151" />
+                </TouchableOpacity>
+              </>
+            ) : (
+              <TouchableOpacity
+                style={[styles.ownerBtn, styles.ownerBtnDelete]}
+                onPress={() => setConfirmDelete(true)}
+              >
+                <Ionicons name="trash-outline" size={18} color="#ef4444" />
+                <Text style={[styles.ownerBtnText, { color: '#ef4444' }]}>Delete</Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
 

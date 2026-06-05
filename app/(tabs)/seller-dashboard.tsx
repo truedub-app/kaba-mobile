@@ -45,6 +45,8 @@ export default function SellerDashboardScreen() {
   const [stats, setStats] = useState<Stats>({ totalViews: 0, totalSaves: 0, conversations: 0, activeListings: 0 });
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const firstName = profile?.full_name?.split(' ')[0] ?? 'there';
 
@@ -101,36 +103,36 @@ export default function SellerDashboardScreen() {
     }
   };
 
-  const handleDelete = (item: Listing) => {
-    Alert.alert(
-      'Delete Listing',
-      `Delete "${item.title}"? This cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            const { data: deleted, error } = await supabase
-              .from('listings')
-              .delete()
-              .eq('id', item.id)
-              .select('id');   // returns deleted rows; empty = RLS blocked silently
-            if (error) {
-              Alert.alert('Delete Failed', error.message);
-            } else if (!deleted?.length) {
-              Alert.alert('Delete Failed', 'No rows deleted — your session may have expired or RLS denied it. Try signing out and back in.');
-            } else {
-              setListings((prev) => prev.filter((l) => l.id !== item.id));
-              setStats((prev) => ({
-                ...prev,
-                activeListings: item.status === 'active' ? prev.activeListings - 1 : prev.activeListings,
-              }));
-            }
-          },
-        },
-      ]
-    );
+  const executeDelete = async (item: Listing) => {
+    setDeletingId(item.id);
+    setConfirmDeleteId(null);
+    try {
+      // Use live getUser() — never rely on cached Zustand session for mutations
+      const { data: { user }, error: authErr } = await supabase.auth.getUser();
+      if (authErr || !user) {
+        Alert.alert('Signed Out', 'Your session expired. Please sign in again.');
+        router.push('/(auth)/login');
+        return;
+      }
+      const { data: deleted, error } = await supabase
+        .from('listings')
+        .delete()
+        .eq('id', item.id)
+        .select('id');
+      if (error) {
+        Alert.alert('Delete Failed', error.message);
+      } else if (!deleted?.length) {
+        Alert.alert('Delete Failed', `uid=${user.id.slice(0,8)} | seller=${item.id.slice(0,8)} — RLS blocked. Ensure your account matches the listing owner.`);
+      } else {
+        setListings((prev) => prev.filter((l) => l.id !== item.id));
+        setStats((prev) => ({
+          ...prev,
+          activeListings: item.status === 'active' ? prev.activeListings - 1 : prev.activeListings,
+        }));
+      }
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   if (!session) {
@@ -238,24 +240,47 @@ export default function SellerDashboardScreen() {
 
                 {/* Actions */}
                 <View style={styles.actions}>
-                  <TouchableOpacity
-                    style={styles.actionBtn}
-                    onPress={() => router.push(`/listing/edit/${item.id}`)}
-                  >
-                    <Ionicons name="create-outline" size={18} color="#374151" />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.actionBtn, styles.actionBtnBoost]}
-                    onPress={() => router.push(`/listing/boost/${item.id}`)}
-                  >
-                    <Ionicons name="flash-outline" size={18} color="#d97706" />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.actionBtn, styles.actionBtnDelete]}
-                    onPress={() => handleDelete(item)}
-                  >
-                    <Ionicons name="trash-outline" size={18} color="#ef4444" />
-                  </TouchableOpacity>
+                  {confirmDeleteId === item.id ? (
+                    // Two-tap confirm — no Alert.alert needed (works on web + native)
+                    <>
+                      <TouchableOpacity
+                        style={[styles.actionBtn, styles.actionBtnDelete]}
+                        onPress={() => executeDelete(item)}
+                        disabled={deletingId === item.id}
+                      >
+                        {deletingId === item.id
+                          ? <ActivityIndicator size="small" color="#ef4444" />
+                          : <Ionicons name="checkmark" size={18} color="#ef4444" />}
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.actionBtn}
+                        onPress={() => setConfirmDeleteId(null)}
+                      >
+                        <Ionicons name="close" size={18} color="#374151" />
+                      </TouchableOpacity>
+                    </>
+                  ) : (
+                    <>
+                      <TouchableOpacity
+                        style={styles.actionBtn}
+                        onPress={() => router.push(`/listing/edit/${item.id}`)}
+                      >
+                        <Ionicons name="create-outline" size={18} color="#374151" />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.actionBtn, styles.actionBtnBoost]}
+                        onPress={() => router.push(`/listing/boost/${item.id}`)}
+                      >
+                        <Ionicons name="flash-outline" size={18} color="#d97706" />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.actionBtn, styles.actionBtnDelete]}
+                        onPress={() => setConfirmDeleteId(item.id)}
+                      >
+                        <Ionicons name="trash-outline" size={18} color="#ef4444" />
+                      </TouchableOpacity>
+                    </>
+                  )}
                 </View>
               </View>
             ))
