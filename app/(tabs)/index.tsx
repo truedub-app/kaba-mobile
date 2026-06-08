@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, Dimensions,
-  TouchableOpacity, ActivityIndicator, ScrollView, Image,
+  TouchableOpacity, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -14,13 +14,11 @@ import { FilterSheet } from '@/components/FilterSheet';
 import { EmptyState } from '@/components/EmptyState';
 import { AppHeader } from '@/components/AppHeader';
 import { useListings, fetchCategories } from '@/src/hooks/useListings';
-import { useAbroadItems } from '@/src/hooks/useAbroadItems';
 import { useAuthStore } from '@/src/hooks/useAuth';
 import { toggleFavorite } from '@/src/hooks/useFavorites';
 import { supabase } from '@/src/lib/supabase';
-import { formatPrice, SUPABASE_STORAGE_URL } from '@/src/lib/utils';
-import { ALGERIAN_CITIES, CONDITION_LABELS, IMPORT_COUNTRIES } from '@/src/types';
-import type { Category, Listing, ListingFilters, UsedInternationalProduct } from '@/src/types';
+import { ALGERIAN_CITIES } from '@/src/types';
+import type { Category, Listing, ListingFilters } from '@/src/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_WIDTH = (SCREEN_WIDTH - 24 * 2 - 8) / 2;
@@ -29,78 +27,6 @@ const FEATURED_SELECT = `*, seller:profiles!listings_seller_id_fkey(id, full_nam
 
 const VISIBLE_CITIES = ALGERIAN_CITIES.slice(0, 8);
 const MORE_CITIES_COUNT = ALGERIAN_CITIES.length - VISIBLE_CITIES.length;
-
-// ── Abroad item mini-card ─────────────────────────────────────
-function AbroadMiniCard({ item }: { item: UsedInternationalProduct }) {
-  const router = useRouter();
-  const flag = IMPORT_COUNTRIES.find((c) => c.name === item.source_country)?.flag ?? '🌍';
-
-  // ETA
-  let etaLabel = '';
-  if (item.trip?.return_date) {
-    const deliveryMs = new Date(`${item.trip.return_date}T00:00:00`).getTime() + 3 * 86_400_000;
-    const days = Math.ceil((deliveryMs - new Date().setHours(0,0,0,0)) / 86_400_000);
-    if (days === 0) etaLabel = 'Today';
-    else if (days === 1) etaLabel = 'Tomorrow';
-    else if (days > 0 && days <= 30) etaLabel = `${days}d`;
-  }
-
-  return (
-    <TouchableOpacity
-      style={abroadStyles.card}
-      onPress={() => router.push(`/abroad/${item.id}`)}
-      activeOpacity={0.88}
-    >
-      {item.images[0] ? (
-        <Image
-          source={{
-            uri: item.images[0].startsWith('http')
-              ? item.images[0]
-              : `${SUPABASE_STORAGE_URL}/${item.images[0]}`,
-          }}
-          style={abroadStyles.image}
-          resizeMode="cover"
-        />
-      ) : (
-        <View style={[abroadStyles.image, { backgroundColor: '#e5e7eb', alignItems: 'center', justifyContent: 'center' }]}>
-          <Text style={{ fontSize: 24 }}>{flag}</Text>
-        </View>
-      )}
-      <View style={abroadStyles.cardBody}>
-        <View style={abroadStyles.topRow}>
-          <Text style={abroadStyles.flag}>{flag}</Text>
-          {etaLabel ? (
-            <View style={abroadStyles.etaChip}>
-              <Text style={abroadStyles.etaText}>{etaLabel}</Text>
-            </View>
-          ) : null}
-        </View>
-        <Text style={abroadStyles.title} numberOfLines={2}>{item.title}</Text>
-        <Text style={abroadStyles.price}>{formatPrice(item.price_dzd)}</Text>
-      </View>
-    </TouchableOpacity>
-  );
-}
-
-const abroadStyles = StyleSheet.create({
-  card: {
-    width: 140,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    backgroundColor: '#fff',
-    marginRight: 10,
-    overflow: 'hidden',
-  },
-  image: { width: '100%', height: 100 },
-  cardBody: { padding: 8 },
-  topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  flag: { fontSize: 16 },
-  etaChip: { backgroundColor: '#f0fdf4', borderRadius: 999, paddingHorizontal: 6, paddingVertical: 2 },
-  etaText: { fontSize: 10, color: '#15803d', fontWeight: '700' },
-  title: { fontSize: 12, fontWeight: '600', color: '#111827', lineHeight: 15, marginBottom: 4 },
-  price: { fontSize: 12, fontWeight: '800', color: '#15803d' },
-});
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -122,7 +48,6 @@ export default function HomeScreen() {
   };
 
   const { listings, loading, refreshing, hasMore, refresh, loadMore } = useListings(mergedFilters);
-  const { items: abroadItems, refresh: refreshAbroad } = useAbroadItems();
 
   useEffect(() => {
     fetchCategories().then(setCategories);
@@ -136,7 +61,7 @@ export default function HomeScreen() {
       .then(({ data }) => { if (data) setFeaturedListings(data as Listing[]); });
   }, []);
 
-  useEffect(() => { refresh(); refreshAbroad(); }, []);
+  useEffect(() => { refresh(); }, []);
   useEffect(() => { refresh(); }, [searchQuery, selectedCategory, JSON.stringify(filters)]);
 
   const handleFavoriteToggle = useCallback(async (listingId: string) => {
@@ -195,6 +120,24 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* ── Shop from Abroad banner ── */}
+      {!hasFilters && (
+        <TouchableOpacity
+          style={styles.abroadBanner}
+          activeOpacity={0.88}
+          onPress={() => router.push('/abroad/search')}
+        >
+          <Text style={styles.abroadEmoji}>✈️</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.abroadTitle}>Shop from Abroad</Text>
+            <Text style={styles.abroadSub}>Amazon, eBay & more → delivered to Algeria</Text>
+          </View>
+          <View style={styles.abroadArrow}>
+            <Ionicons name="arrow-forward" size={16} color="#15803d" />
+          </View>
+        </TouchableOpacity>
+      )}
 
       {/* ── Active filter chips ── */}
       {hasFilters && (
@@ -268,36 +211,6 @@ export default function HomeScreen() {
         </View>
       )}
 
-      {/* ── Deals from Abroad strip ── */}
-      {abroadItems.length > 0 && !hasFilters && (
-        <View style={styles.section}>
-          <View style={styles.sectionRow}>
-            <View>
-              <Text style={styles.sectionTitle}>✈️ Deals from Abroad</Text>
-              <Text style={[styles.smallLabel, { paddingHorizontal: 0, paddingBottom: 0, paddingTop: 0, fontSize: 11 }]}>
-                Items brought by verified travelers
-              </Text>
-            </View>
-            <TouchableOpacity
-              style={styles.seeAll}
-              onPress={() => router.push('/abroad/post')}
-            >
-              <Text style={styles.seeAllText}>Post item</Text>
-              <Ionicons name="arrow-forward" size={12} color="#15803d" />
-            </TouchableOpacity>
-          </View>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 4 }}
-          >
-            {abroadItems.map((item) => (
-              <AbroadMiniCard key={item.id} item={item} />
-            ))}
-          </ScrollView>
-        </View>
-      )}
-
       {/* ── Featured Listings (2-col grid) ── */}
       {featuredListings.length > 0 && !hasFilters && (
         <View style={styles.section}>
@@ -355,18 +268,13 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      {/* ── Sticky App Header ── */}
       <AppHeader />
-
-      {/* ── Sticky Search Bar ── */}
       <SearchBar
         value={search}
         onChangeText={setSearch}
         onSubmit={() => setSearchQuery(search)}
         placeholder="Search items, categories or locations..."
       />
-
-      {/* ── Main Scroll ── */}
       <FlashList
         data={listings}
         renderItem={renderListing}
@@ -424,20 +332,30 @@ const styles = StyleSheet.create({
   heroDesc: { fontSize: 13, color: '#bbf7d0', marginTop: 8, lineHeight: 19 },
   heroBtns: { flexDirection: 'row', gap: 10, marginTop: 20 },
   heroExploreBtn: {
-    borderWidth: 1.5,
-    borderColor: '#fff',
-    borderRadius: 8,
-    paddingHorizontal: 18,
-    paddingVertical: 10,
+    borderWidth: 1.5, borderColor: '#fff', borderRadius: 8,
+    paddingHorizontal: 18, paddingVertical: 10,
   },
   heroExploreBtnText: { color: '#fff', fontWeight: '600', fontSize: 14 },
   heroSellBtn: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    paddingHorizontal: 18,
-    paddingVertical: 10,
+    backgroundColor: '#fff', borderRadius: 8,
+    paddingHorizontal: 18, paddingVertical: 10,
   },
   heroSellBtnText: { color: '#14532d', fontWeight: '700', fontSize: 14 },
+
+  // Shop from Abroad banner
+  abroadBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    marginHorizontal: -12, marginTop: 0,
+    backgroundColor: '#f0fdf4', borderBottomWidth: 1, borderBottomColor: '#bbf7d0',
+    paddingHorizontal: 20, paddingVertical: 14,
+  },
+  abroadEmoji: { fontSize: 28 },
+  abroadTitle: { fontSize: 15, fontWeight: '800', color: '#14532d' },
+  abroadSub: { fontSize: 11, color: '#16a34a', marginTop: 1 },
+  abroadArrow: {
+    width: 30, height: 30, borderRadius: 15,
+    backgroundColor: '#dcfce7', alignItems: 'center', justifyContent: 'center',
+  },
 
   section: { marginBottom: 4 },
   sectionRow: {
@@ -449,99 +367,55 @@ const styles = StyleSheet.create({
   },
   sectionTitle: { fontSize: 16, fontWeight: '700', color: '#111827' },
   smallLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#6b7280',
-    paddingHorizontal: 16,
-    paddingBottom: 10,
-    paddingTop: 4,
+    fontSize: 13, fontWeight: '600', color: '#6b7280',
+    paddingHorizontal: 16, paddingBottom: 10, paddingTop: 4,
   },
   seeAll: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   seeAllText: { fontSize: 13, color: '#15803d', fontWeight: '500' },
 
   citiesWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: 12,
-    gap: 8,
-    paddingBottom: 8,
+    flexDirection: 'row', flexWrap: 'wrap',
+    paddingHorizontal: 12, gap: 8, paddingBottom: 8,
   },
   cityChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    backgroundColor: '#fff',
+    paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999,
+    borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#fff',
   },
   cityChipText: { fontSize: 13, color: '#374151' },
   moreCitiesChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: '#86efac',
-    backgroundColor: '#dcfce7',
+    paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999,
+    borderWidth: 1, borderColor: '#86efac', backgroundColor: '#dcfce7',
   },
   moreCitiesText: { fontSize: 13, color: '#15803d', fontWeight: '600' },
 
-  gridWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
+  gridWrap: { flexDirection: 'row', flexWrap: 'wrap' },
 
   activeFilters: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    paddingHorizontal: 16,
-    marginVertical: 8,
+    flexDirection: 'row', flexWrap: 'wrap',
+    gap: 6, paddingHorizontal: 16, marginVertical: 8,
   },
   chip: {
-    backgroundColor: '#dcfce7',
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderWidth: 1,
-    borderColor: '#86efac',
+    backgroundColor: '#dcfce7', borderRadius: 999, paddingHorizontal: 10,
+    paddingVertical: 5, borderWidth: 1, borderColor: '#86efac',
   },
   chipText: { fontSize: 12, color: '#15803d', fontWeight: '500' },
 
   ctaBanner: {
-    backgroundColor: '#14532d',
-    borderRadius: 16,
-    marginHorizontal: 4,
-    marginTop: 16,
-    marginBottom: 8,
-    padding: 24,
-    alignItems: 'center',
+    backgroundColor: '#14532d', borderRadius: 16, marginHorizontal: 4,
+    marginTop: 16, marginBottom: 8, padding: 24, alignItems: 'center',
   },
   ctaTitle: { fontSize: 20, fontWeight: '800', color: '#fff', textAlign: 'center' },
   ctaSubtitle: {
-    fontSize: 13,
-    color: '#bbf7d0',
-    marginTop: 6,
-    textAlign: 'center',
-    lineHeight: 18,
+    fontSize: 13, color: '#bbf7d0', marginTop: 6, textAlign: 'center', lineHeight: 18,
   },
   ctaBtn: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    paddingHorizontal: 28,
-    paddingVertical: 12,
-    marginTop: 18,
+    backgroundColor: '#fff', borderRadius: 10,
+    paddingHorizontal: 28, paddingVertical: 12, marginTop: 18,
   },
   ctaBtnText: { fontSize: 15, fontWeight: '700', color: '#14532d' },
 
   loader: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#fff',
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff',
   },
-
 });

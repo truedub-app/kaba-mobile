@@ -199,20 +199,12 @@ export default function SellerDashboardScreen() {
           </View>
           <View style={styles.importBtns}>
             <TouchableOpacity
-              style={styles.importBtn}
+              style={[styles.importBtn, styles.importBtnGreen]}
               activeOpacity={0.85}
               onPress={() => router.push('/trips')}
             >
-              <Ionicons name="airplane-outline" size={18} color="#15803d" />
-              <Text style={styles.importBtnText}>My Trips</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.importBtn, styles.importBtnGreen]}
-              activeOpacity={0.85}
-              onPress={() => router.push('/abroad/post')}
-            >
-              <Ionicons name="add-circle-outline" size={18} color="#fff" />
-              <Text style={[styles.importBtnText, { color: '#fff' }]}>Post Abroad Item</Text>
+              <Ionicons name="airplane-outline" size={18} color="#fff" />
+              <Text style={styles.importBtnTextWhite}>My Trips</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -369,6 +361,7 @@ const styles = StyleSheet.create({
   },
   importBtnGreen: { backgroundColor: '#15803d', borderColor: '#15803d' },
   importBtnText: { fontSize: 13, fontWeight: '700', color: '#15803d' },
+  importBtnTextWhite: { fontSize: 13, fontWeight: '700', color: '#fff' },
 
   listingsCard: {
     marginHorizontal: 12, borderRadius: 14,
