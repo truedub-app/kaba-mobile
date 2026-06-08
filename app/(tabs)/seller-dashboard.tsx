@@ -189,6 +189,34 @@ export default function SellerDashboardScreen() {
           </View>
         )}
 
+        {/* ── Micro-Import Manager ── */}
+        <View style={styles.importCard}>
+          <View style={styles.importHeader}>
+            <Text style={styles.importTitle}>✈️ Micro-Import Manager</Text>
+            <Text style={styles.importSubtitle}>
+              Sell items you find abroad — register trips &amp; post listings
+            </Text>
+          </View>
+          <View style={styles.importBtns}>
+            <TouchableOpacity
+              style={styles.importBtn}
+              activeOpacity={0.85}
+              onPress={() => router.push('/trips')}
+            >
+              <Ionicons name="airplane-outline" size={18} color="#15803d" />
+              <Text style={styles.importBtnText}>My Trips</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.importBtn, styles.importBtnGreen]}
+              activeOpacity={0.85}
+              onPress={() => router.push('/abroad/post')}
+            >
+              <Ionicons name="add-circle-outline" size={18} color="#fff" />
+              <Text style={[styles.importBtnText, { color: '#fff' }]}>Post Abroad Item</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* ── Your Listings ── */}
         <View style={styles.listingsCard}>
           <Text style={styles.listingsHeading}>Your Listings</Text>
@@ -324,6 +352,23 @@ const styles = StyleSheet.create({
   },
   statNum: { fontSize: 24, fontWeight: '800', color: '#111827' },
   statLabel: { fontSize: 12, color: '#6b7280' },
+
+  importCard: {
+    marginHorizontal: 12, marginBottom: 12,
+    borderRadius: 14, borderWidth: 1, borderColor: '#bbf7d0',
+    backgroundColor: '#f0fdf4', padding: 14,
+  },
+  importHeader: { marginBottom: 12 },
+  importTitle: { fontSize: 15, fontWeight: '800', color: '#14532d', marginBottom: 2 },
+  importSubtitle: { fontSize: 12, color: '#16a34a' },
+  importBtns: { flexDirection: 'row', gap: 8 },
+  importBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 6, paddingVertical: 10, borderRadius: 10,
+    borderWidth: 1.5, borderColor: '#15803d', backgroundColor: '#fff',
+  },
+  importBtnGreen: { backgroundColor: '#15803d', borderColor: '#15803d' },
+  importBtnText: { fontSize: 13, fontWeight: '700', color: '#15803d' },
 
   listingsCard: {
     marginHorizontal: 12, borderRadius: 14,

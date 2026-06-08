@@ -174,6 +174,53 @@ export interface SellerApplication {
   user?: Profile;
 }
 
+// ============================================================
+// MICRO-IMPORTATION — Phase 1
+// ============================================================
+export type TravelTripStatus = "active" | "completed" | "cancelled";
+export type UsedItemCondition = "like_new" | "good" | "fair";
+export type UsedItemStatus   = "available" | "pending" | "sold";
+
+export interface TravelTrip {
+  id: string;
+  user_id: string;
+  source_country: string;
+  source_city: string | null;
+  departure_date: string;
+  return_date: string;
+  max_weight_kg: number | null;
+  notes: string | null;
+  status: TravelTripStatus;
+  created_at: string;
+  updated_at: string;
+  contractor?: Profile;
+}
+
+export interface UsedInternationalProduct {
+  id: string;
+  contractor_id: string;
+  title: string;
+  description: string | null;
+  condition: UsedItemCondition;
+  price_dzd: number;
+  source_country: string;
+  source_city: string | null;
+  images: string[];
+  trip_id: string | null;
+  status: UsedItemStatus;
+  views: number;
+  created_at: string;
+  updated_at: string;
+  contractor?: Profile;
+  trip?: TravelTrip;
+}
+
+export const CONDITION_LABELS: Record<UsedItemCondition, string> = {
+  like_new: "Like New",
+  good:     "Good",
+  fair:     "Fair",
+};
+
 export const ALGERIAN_CITIES = [
   "Algiers",
   "Oran",

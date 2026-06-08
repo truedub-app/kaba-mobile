@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, Dimensions,
-  TouchableOpacity, ActivityIndicator,
+  TouchableOpacity, ActivityIndicator, ScrollView, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -14,11 +14,13 @@ import { FilterSheet } from '@/components/FilterSheet';
 import { EmptyState } from '@/components/EmptyState';
 import { AppHeader } from '@/components/AppHeader';
 import { useListings, fetchCategories } from '@/src/hooks/useListings';
+import { useAbroadItems } from '@/src/hooks/useAbroadItems';
 import { useAuthStore } from '@/src/hooks/useAuth';
 import { toggleFavorite } from '@/src/hooks/useFavorites';
 import { supabase } from '@/src/lib/supabase';
-import { ALGERIAN_CITIES } from '@/src/types';
-import type { Category, Listing, ListingFilters } from '@/src/types';
+import { formatPrice, SUPABASE_STORAGE_URL } from '@/src/lib/utils';
+import { ALGERIAN_CITIES, CONDITION_LABELS, IMPORT_COUNTRIES } from '@/src/types';
+import type { Category, Listing, ListingFilters, UsedInternationalProduct } from '@/src/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_WIDTH = (SCREEN_WIDTH - 24 * 2 - 8) / 2;
@@ -27,6 +29,78 @@ const FEATURED_SELECT = `*, seller:profiles!listings_seller_id_fkey(id, full_nam
 
 const VISIBLE_CITIES = ALGERIAN_CITIES.slice(0, 8);
 const MORE_CITIES_COUNT = ALGERIAN_CITIES.length - VISIBLE_CITIES.length;
+
+// ── Abroad item mini-card ─────────────────────────────────────
+function AbroadMiniCard({ item }: { item: UsedInternationalProduct }) {
+  const router = useRouter();
+  const flag = IMPORT_COUNTRIES.find((c) => c.name === item.source_country)?.flag ?? '🌍';
+
+  // ETA
+  let etaLabel = '';
+  if (item.trip?.return_date) {
+    const deliveryMs = new Date(`${item.trip.return_date}T00:00:00`).getTime() + 3 * 86_400_000;
+    const days = Math.ceil((deliveryMs - new Date().setHours(0,0,0,0)) / 86_400_000);
+    if (days === 0) etaLabel = 'Today';
+    else if (days === 1) etaLabel = 'Tomorrow';
+    else if (days > 0 && days <= 30) etaLabel = `${days}d`;
+  }
+
+  return (
+    <TouchableOpacity
+      style={abroadStyles.card}
+      onPress={() => router.push(`/abroad/${item.id}`)}
+      activeOpacity={0.88}
+    >
+      {item.images[0] ? (
+        <Image
+          source={{
+            uri: item.images[0].startsWith('http')
+              ? item.images[0]
+              : `${SUPABASE_STORAGE_URL}/${item.images[0]}`,
+          }}
+          style={abroadStyles.image}
+          resizeMode="cover"
+        />
+      ) : (
+        <View style={[abroadStyles.image, { backgroundColor: '#e5e7eb', alignItems: 'center', justifyContent: 'center' }]}>
+          <Text style={{ fontSize: 24 }}>{flag}</Text>
+        </View>
+      )}
+      <View style={abroadStyles.cardBody}>
+        <View style={abroadStyles.topRow}>
+          <Text style={abroadStyles.flag}>{flag}</Text>
+          {etaLabel ? (
+            <View style={abroadStyles.etaChip}>
+              <Text style={abroadStyles.etaText}>{etaLabel}</Text>
+            </View>
+          ) : null}
+        </View>
+        <Text style={abroadStyles.title} numberOfLines={2}>{item.title}</Text>
+        <Text style={abroadStyles.price}>{formatPrice(item.price_dzd)}</Text>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+const abroadStyles = StyleSheet.create({
+  card: {
+    width: 140,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    backgroundColor: '#fff',
+    marginRight: 10,
+    overflow: 'hidden',
+  },
+  image: { width: '100%', height: 100 },
+  cardBody: { padding: 8 },
+  topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  flag: { fontSize: 16 },
+  etaChip: { backgroundColor: '#f0fdf4', borderRadius: 999, paddingHorizontal: 6, paddingVertical: 2 },
+  etaText: { fontSize: 10, color: '#15803d', fontWeight: '700' },
+  title: { fontSize: 12, fontWeight: '600', color: '#111827', lineHeight: 15, marginBottom: 4 },
+  price: { fontSize: 12, fontWeight: '800', color: '#15803d' },
+});
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -48,6 +122,7 @@ export default function HomeScreen() {
   };
 
   const { listings, loading, refreshing, hasMore, refresh, loadMore } = useListings(mergedFilters);
+  const { items: abroadItems, refresh: refreshAbroad } = useAbroadItems();
 
   useEffect(() => {
     fetchCategories().then(setCategories);
@@ -61,7 +136,7 @@ export default function HomeScreen() {
       .then(({ data }) => { if (data) setFeaturedListings(data as Listing[]); });
   }, []);
 
-  useEffect(() => { refresh(); }, []);
+  useEffect(() => { refresh(); refreshAbroad(); }, []);
   useEffect(() => { refresh(); }, [searchQuery, selectedCategory, JSON.stringify(filters)]);
 
   const handleFavoriteToggle = useCallback(async (listingId: string) => {
@@ -190,6 +265,36 @@ export default function HomeScreen() {
               </TouchableOpacity>
             )}
           </View>
+        </View>
+      )}
+
+      {/* ── Deals from Abroad strip ── */}
+      {abroadItems.length > 0 && !hasFilters && (
+        <View style={styles.section}>
+          <View style={styles.sectionRow}>
+            <View>
+              <Text style={styles.sectionTitle}>✈️ Deals from Abroad</Text>
+              <Text style={[styles.smallLabel, { paddingHorizontal: 0, paddingBottom: 0, paddingTop: 0, fontSize: 11 }]}>
+                Items brought by verified travelers
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.seeAll}
+              onPress={() => router.push('/abroad/post')}
+            >
+              <Text style={styles.seeAllText}>Post item</Text>
+              <Ionicons name="arrow-forward" size={12} color="#15803d" />
+            </TouchableOpacity>
+          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 4 }}
+          >
+            {abroadItems.map((item) => (
+              <AbroadMiniCard key={item.id} item={item} />
+            ))}
+          </ScrollView>
         </View>
       )}
 

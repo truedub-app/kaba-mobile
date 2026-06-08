@@ -27,7 +27,9 @@ export default function RootLayout() {
       <StatusBar style="dark" />
       <Stack style={{ flex: 1 }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+        <Stack.Screen name="(auth)"  options={{ headerShown: false }} />
+        <Stack.Screen name="trips"   options={{ headerShown: false }} />
+        <Stack.Screen name="abroad"  options={{ headerShown: false }} />
         <Stack.Screen name="+not-found" />
       </Stack>
       <AppTabBar />

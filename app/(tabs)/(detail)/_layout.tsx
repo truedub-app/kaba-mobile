@@ -17,6 +17,7 @@ export default function DetailLayout() {
       <Stack.Screen name="chat/[id]"            options={{ ...HEADER }} />
       <Stack.Screen name="user/[id]"            options={{ title: 'Seller Profile', ...HEADER }} />
       <Stack.Screen name="seller/apply"         options={{ title: 'Become a Seller',...HEADER }} />
+      <Stack.Screen name="abroad/[id]"          options={{ headerShown: false }} />
     </Stack>
   );
 }
