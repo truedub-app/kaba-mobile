@@ -97,7 +97,7 @@ export default function ContractorOrdersScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <Header onBack={() => router.back()} />
+      <Header onBack={() => router.back()} onEarnings={() => router.push('/contractor/earnings')} />
 
       {loading ? (
         <ActivityIndicator color="#15803d" style={{ marginTop: 40 }} />
@@ -226,13 +226,17 @@ export default function ContractorOrdersScreen() {
   );
 }
 
-function Header({ onBack }: { onBack: () => void }) {
+function Header({ onBack, onEarnings }: { onBack: () => void; onEarnings: () => void }) {
   return (
     <View style={styles.header}>
       <TouchableOpacity onPress={onBack} style={styles.backBtn}>
         <Ionicons name="arrow-back" size={22} color="#111827" />
       </TouchableOpacity>
       <Text style={styles.headerTitle}>Pending Deliveries</Text>
+      <TouchableOpacity onPress={onEarnings} style={styles.earningsBtn}>
+        <Ionicons name="wallet-outline" size={18} color="#15803d" />
+        <Text style={styles.earningsBtnText}>Earnings</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -244,7 +248,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e5e7eb',
   },
   backBtn:     { padding: 4, marginRight: 10 },
-  headerTitle: { fontSize: 18, fontWeight: '800', color: '#111827' },
+  headerTitle: { flex: 1, fontSize: 18, fontWeight: '800', color: '#111827' },
+  earningsBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, padding: 4 },
+  earningsBtnText: { fontSize: 13, fontWeight: '700', color: '#15803d' },
 
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   emptyTitle: {
