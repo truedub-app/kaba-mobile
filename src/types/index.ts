@@ -221,6 +221,60 @@ export const CONDITION_LABELS: Record<UsedItemCondition, string> = {
   fair:     "Fair",
 };
 
+// ── Import Requests ──────────────────────────────────────────
+export type ImportRequestStatus =
+  | "pending_deposit"
+  | "awaiting_verification"
+  | "deposit_held"
+  | "in_transit"
+  | "released_to_seller"
+  | "disputed"
+  | "liquidated"
+  | "refunded";
+
+export interface ImportRequest {
+  id: string;
+  buyer_id: string;
+  contractor_id: string;
+  trip_id: string | null;
+  product_title: string;
+  product_url: string | null;
+  product_image: string | null;
+  product_platform: string;
+  product_price_original: number | null;
+  product_currency: string;
+  platform_rate_used: number;
+  contractor_total_dzd: number;
+  deposit_dzd: number;
+  buyer_fee_dzd: number;
+  seller_fee_dzd: number;
+  upfront_dzd: number;
+  cod_dzd: number;
+  status: ImportRequestStatus;
+  receipt_url: string | null;
+  buyer_confirmed_at: string | null;
+  contractor_confirmed_at: string | null;
+  admin_reviewed_by: string | null;
+  admin_reviewed_at: string | null;
+  admin_notes: string | null;
+  dispute_evidence_urls: string[];
+  created_at: string;
+  updated_at: string;
+  buyer?: Profile;
+  contractor?: Profile;
+}
+
+export const STATUS_LABELS: Record<ImportRequestStatus, string> = {
+  pending_deposit:       "Awaiting Deposit",
+  awaiting_verification: "Admin Verifying",
+  deposit_held:          "Deposit Secured",
+  in_transit:            "In Transit",
+  released_to_seller:    "Completed",
+  disputed:              "Disputed",
+  liquidated:            "Buyer Defaulted",
+  refunded:              "Refunded",
+};
+
 export const ALGERIAN_CITIES = [
   "Algiers",
   "Oran",

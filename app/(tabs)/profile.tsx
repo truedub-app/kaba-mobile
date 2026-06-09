@@ -220,6 +220,35 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {/* ── Quick links ── */}
+        <View style={styles.quickLinks}>
+          <TouchableOpacity
+            style={styles.quickLink}
+            activeOpacity={0.8}
+            onPress={() => router.push('/orders')}
+          >
+            <View style={[styles.quickLinkIcon, { backgroundColor: '#f0fdf4' }]}>
+              <Ionicons name="bag-outline" size={18} color="#15803d" />
+            </View>
+            <Text style={styles.quickLinkText}>Import Orders</Text>
+            <Ionicons name="chevron-forward" size={14} color="#9ca3af" />
+          </TouchableOpacity>
+
+          {(profile?.role === 'seller' || profile?.role === 'admin') && (
+            <TouchableOpacity
+              style={styles.quickLink}
+              activeOpacity={0.8}
+              onPress={() => router.push('/contractor/orders')}
+            >
+              <View style={[styles.quickLinkIcon, { backgroundColor: '#eff6ff' }]}>
+                <Ionicons name="cube-outline" size={18} color="#1d4ed8" />
+              </View>
+              <Text style={styles.quickLinkText}>My Deliveries</Text>
+              <Ionicons name="chevron-forward" size={14} color="#9ca3af" />
+            </TouchableOpacity>
+          )}
+        </View>
+
         {/* ── Tab switcher ── */}
         <View style={styles.tabRow}>
           <TouchableOpacity
@@ -472,6 +501,34 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
   },
   verifiedText: { fontSize: 12, color: '#15803d', fontWeight: '700' },
+
+  /* Quick links */
+  quickLinks: {
+    marginHorizontal: 16,
+    marginBottom: 14,
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    overflow: 'hidden',
+  },
+  quickLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  quickLinkIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickLinkText: { flex: 1, fontSize: 14, fontWeight: '600', color: '#111827' },
 
   /* Tabs */
   tabRow: {

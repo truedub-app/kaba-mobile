@@ -28,8 +28,10 @@ export default function RootLayout() {
       <Stack style={{ flex: 1 }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="(auth)"  options={{ headerShown: false }} />
-        <Stack.Screen name="trips"   options={{ headerShown: false }} />
-        <Stack.Screen name="abroad"  options={{ headerShown: false }} />
+        <Stack.Screen name="trips"      options={{ headerShown: false }} />
+        <Stack.Screen name="abroad"     options={{ headerShown: false }} />
+        <Stack.Screen name="orders"     options={{ headerShown: false }} />
+        <Stack.Screen name="contractor" options={{ headerShown: false }} />
         <Stack.Screen name="+not-found" />
       </Stack>
       <AppTabBar />

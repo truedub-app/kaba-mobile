@@ -87,7 +87,7 @@ export default function AbroadOrderScreen() {
       Alert.alert(
         'Order Placed! ✅',
         'Your receipt is being verified by the KABA team. You will be notified once confirmed.',
-        [{ text: 'Done', onPress: () => router.push('/(tabs)/profile') }]
+        [{ text: 'Track Order', onPress: () => router.replace('/orders') }]
       );
     } catch (err) {
       Alert.alert('Error', err instanceof Error ? err.message : 'Something went wrong');

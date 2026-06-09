@@ -206,6 +206,14 @@ export default function SellerDashboardScreen() {
               <Ionicons name="airplane-outline" size={18} color="#fff" />
               <Text style={styles.importBtnTextWhite}>My Trips</Text>
             </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.importBtn, styles.importBtnOutline]}
+              activeOpacity={0.85}
+              onPress={() => router.push('/contractor/orders')}
+            >
+              <Ionicons name="cube-outline" size={18} color="#15803d" />
+              <Text style={styles.importBtnText}>My Deliveries</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -359,8 +367,9 @@ const styles = StyleSheet.create({
     gap: 6, paddingVertical: 10, borderRadius: 10,
     borderWidth: 1.5, borderColor: '#15803d', backgroundColor: '#fff',
   },
-  importBtnGreen: { backgroundColor: '#15803d', borderColor: '#15803d' },
-  importBtnText: { fontSize: 13, fontWeight: '700', color: '#15803d' },
+  importBtnGreen:   { backgroundColor: '#15803d', borderColor: '#15803d' },
+  importBtnOutline: { backgroundColor: '#fff', borderColor: '#15803d' },
+  importBtnText:      { fontSize: 13, fontWeight: '700', color: '#15803d' },
   importBtnTextWhite: { fontSize: 13, fontWeight: '700', color: '#fff' },
 
   listingsCard: {
