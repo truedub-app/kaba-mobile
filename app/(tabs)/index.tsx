@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, Dimensions,
-  TouchableOpacity, ActivityIndicator,
+  View, Text, StyleSheet, Dimensions, Image,
+  TouchableOpacity, ActivityIndicator, ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -17,33 +17,51 @@ import { useListings, fetchCategories } from '@/src/hooks/useListings';
 import { useAuthStore } from '@/src/hooks/useAuth';
 import { toggleFavorite } from '@/src/hooks/useFavorites';
 import { supabase } from '@/src/lib/supabase';
-import { ALGERIAN_CITIES } from '@/src/types';
-import type { Category, Listing, ListingFilters } from '@/src/types';
+import { getAvatarUrl } from '@/src/lib/utils';
+import type { Category, Listing, ListingFilters, TravelTrip, Profile } from '@/src/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_WIDTH = (SCREEN_WIDTH - 24 * 2 - 8) / 2;
 
 const FEATURED_SELECT = `*, seller:profiles!listings_seller_id_fkey(id, full_name, avatar_url, avg_rating, total_reviews, is_verified), category:categories(id, name, slug)`;
 
-const VISIBLE_CITIES = ALGERIAN_CITIES.slice(0, 8);
-const MORE_CITIES_COUNT = ALGERIAN_CITIES.length - VISIBLE_CITIES.length;
+const COUNTRY_CHIPS = [
+  { id: 'amazon-fr', flag: '🇫🇷', en: 'France' },
+  { id: 'amazon-ae', flag: '🇦🇪', en: 'UAE' },
+  { id: 'amazon-uk', flag: '🇬🇧', en: 'UK' },
+  { id: 'amazon-de', flag: '🇩🇪', en: 'Germany' },
+  { id: 'ebay-fr',   flag: '🇫🇷', en: 'eBay' },
+] as const;
+
+const COUNTRY_FLAGS: Record<string, string> = {
+  France: '🇫🇷', 'United Kingdom': '🇬🇧', UK: '🇬🇧',
+  'United Arab Emirates': '🇦🇪', UAE: '🇦🇪',
+  Germany: '🇩🇪', Turkey: '🇹🇷', 'Saudi Arabia': '🇸🇦',
+  Spain: '🇪🇸', Italy: '🇮🇹', USA: '🇺🇸', China: '🇨🇳', Qatar: '🇶🇦',
+};
+
+type TripWithContractor = TravelTrip & { contractor: Profile | null };
+
+function daysUntil(dateStr: string): number {
+  const ms = new Date(`${dateStr}T00:00:00`).getTime() - new Date().setHours(0, 0, 0, 0);
+  return Math.max(0, Math.ceil(ms / 86_400_000));
+}
 
 export default function HomeScreen() {
   const router = useRouter();
   const session = useAuthStore((s) => s.session);
 
   const [search, setSearch] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<ListingFilters>({});
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [filterVisible, setFilterVisible] = useState(false);
   const [favorited, setFavorited] = useState<Set<string>>(new Set());
   const [featuredListings, setFeaturedListings] = useState<Listing[]>([]);
+  const [travelers, setTravelers] = useState<TripWithContractor[]>([]);
 
   const mergedFilters: ListingFilters = {
     ...filters,
-    search: searchQuery || undefined,
     category_id: selectedCategory ?? undefined,
   };
 
@@ -51,6 +69,7 @@ export default function HomeScreen() {
 
   useEffect(() => {
     fetchCategories().then(setCategories);
+
     supabase
       .from('listings')
       .select(FEATURED_SELECT)
@@ -59,10 +78,28 @@ export default function HomeScreen() {
       .order('created_at', { ascending: false })
       .limit(6)
       .then(({ data }) => { if (data) setFeaturedListings(data as Listing[]); });
+
+    // Featured travelers (active trips, soonest return first)
+    const today = new Date().toISOString().split('T')[0];
+    supabase
+      .from('travel_trips')
+      .select('*, contractor:profiles!travel_trips_user_id_fkey(id, full_name, avatar_url, is_verified, avg_rating)')
+      .eq('status', 'active')
+      .gte('return_date', today)
+      .order('return_date')
+      .limit(10)
+      .then(({ data }) => { if (data) setTravelers(data as TripWithContractor[]); });
   }, []);
 
   useEffect(() => { refresh(); }, []);
-  useEffect(() => { refresh(); }, [searchQuery, selectedCategory, JSON.stringify(filters)]);
+  useEffect(() => { refresh(); }, [selectedCategory, JSON.stringify(filters)]);
+
+  const goSearch = (q?: string, platform?: string) => {
+    const params: Record<string, string> = {};
+    if (q?.trim()) params.q = q.trim();
+    if (platform) params.platform = platform;
+    router.push({ pathname: '/search', params });
+  };
 
   const handleFavoriteToggle = useCallback(async (listingId: string) => {
     if (!session?.user) return;
@@ -90,63 +127,89 @@ export default function HomeScreen() {
     (filters.cities?.length ?? 0) > 0 ||
     filters.min_price ||
     filters.max_price ||
-    searchQuery ||
     selectedCategory
   );
 
   const ListHeader = (
     <View>
-      {/* ── Hero ── */}
-      <View style={styles.hero}>
-        <Text style={styles.heroTitle}>Buy. Sell. Connect.</Text>
-        <Text style={styles.heroSubTitle}>Across Algeria.</Text>
-        <Text style={styles.heroDesc}>
-          Your trusted marketplace for amazing deals and real connections.
-        </Text>
-        <View style={styles.heroBtns}>
-          <TouchableOpacity
-            style={styles.heroExploreBtn}
-            activeOpacity={0.85}
-            onPress={() => { setSearchQuery(''); setSearch(''); setSelectedCategory(null); setFilters({}); }}
-          >
-            <Text style={styles.heroExploreBtnText}>Explore Now</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.heroSellBtn}
-            activeOpacity={0.85}
-            onPress={() => router.push('/(auth)/register')}
-          >
-            <Text style={styles.heroSellBtnText}>Start Selling</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* ── Shop from Abroad banner ── */}
+      {/* ── Country chips ── */}
       {!hasFilters && (
-        <TouchableOpacity
-          style={styles.abroadBanner}
-          activeOpacity={0.88}
-          onPress={() => router.push('/abroad/search')}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.countryRow}
+          style={{ flexGrow: 0 }}
         >
-          <Text style={styles.abroadEmoji}>✈️</Text>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.abroadTitle}>Shop from Abroad</Text>
-            <Text style={styles.abroadSub}>Amazon, eBay & more → delivered to Algeria</Text>
+          {COUNTRY_CHIPS.map((c) => (
+            <TouchableOpacity
+              key={c.id}
+              style={styles.countryChip}
+              activeOpacity={0.8}
+              onPress={() => goSearch(undefined, c.id)}
+            >
+              <Text style={styles.countryFlag}>{c.flag}</Text>
+              <Text style={styles.countryName}>{c.en}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      )}
+
+      {/* ── Featured Travelers ── */}
+      {travelers.length > 0 && !hasFilters && (
+        <View style={styles.section}>
+          <View style={styles.sectionRow}>
+            <Text style={styles.sectionTitle}>مسافرون مميزون | Featured Travelers</Text>
+            <TouchableOpacity style={styles.seeAll} onPress={() => goSearch()}>
+              <Text style={styles.seeAllText}>عرض الكل | View all</Text>
+            </TouchableOpacity>
           </View>
-          <View style={styles.abroadArrow}>
-            <Ionicons name="arrow-forward" size={16} color="#15803d" />
-          </View>
-        </TouchableOpacity>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.travelersRow}
+          >
+            {travelers.map((trip) => {
+              const c = trip.contractor;
+              const days = daysUntil(trip.return_date);
+              const avatarUrl = c?.avatar_url ? getAvatarUrl(c.avatar_url) : null;
+              return (
+                <TouchableOpacity
+                  key={trip.id}
+                  style={styles.travelerCard}
+                  activeOpacity={0.85}
+                  onPress={() => goSearch()}
+                >
+                  <View style={styles.travelerAvatarWrap}>
+                    {avatarUrl ? (
+                      <Image source={{ uri: avatarUrl }} style={styles.travelerAvatar} />
+                    ) : (
+                      <View style={[styles.travelerAvatar, styles.travelerAvatarFallback]}>
+                        <Text style={styles.travelerInitial}>
+                          {(c?.full_name ?? '؟').charAt(0).toUpperCase()}
+                        </Text>
+                      </View>
+                    )}
+                    <View style={styles.travelerFlag}>
+                      <Text style={{ fontSize: 13 }}>
+                        {COUNTRY_FLAGS[trip.source_country] ?? '✈️'}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={styles.travelerName} numberOfLines={1}>
+                    {(c?.full_name ?? 'Traveler').split(' ')[0]}
+                  </Text>
+                  <Text style={styles.travelerEtaAr}>قادم خلال {days} أيام</Text>
+                  <Text style={styles.travelerEtaEn}>Coming in {days} days</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
       )}
 
       {/* ── Active filter chips ── */}
       {hasFilters && (
         <View style={styles.activeFilters}>
-          {searchQuery ? (
-            <TouchableOpacity style={styles.chip} onPress={() => { setSearchQuery(''); setSearch(''); }}>
-              <Text style={styles.chipText}>"{searchQuery}" ✕</Text>
-            </TouchableOpacity>
-          ) : null}
           {filters.condition && (
             <TouchableOpacity style={styles.chip} onPress={() => setFilters((p) => ({ ...p, condition: undefined }))}>
               <Text style={styles.chipText}>{filters.condition} ✕</Text>
@@ -159,67 +222,39 @@ export default function HomeScreen() {
               <Text style={styles.chipText}>{c} ✕</Text>
             </TouchableOpacity>
           ))}
+          {selectedCategory && (
+            <TouchableOpacity style={styles.chip} onPress={() => setSelectedCategory(null)}>
+              <Text style={styles.chipText}>Category ✕</Text>
+            </TouchableOpacity>
+          )}
         </View>
       )}
 
-      {/* ── All Categories ── */}
+      {/* ── Product Categories ── */}
       {categories.length > 0 && !hasFilters && (
         <View style={styles.section}>
           <View style={styles.sectionRow}>
-            <Text style={styles.sectionTitle}>All Categories</Text>
+            <Text style={styles.sectionTitle}>فئات المنتجات | Product Categories</Text>
             <TouchableOpacity
               style={styles.seeAll}
               onPress={() => router.push('/(tabs)/browse')}
             >
-              <Text style={styles.seeAllText}>See all</Text>
-              <Ionicons name="arrow-forward" size={12} color="#15803d" />
+              <Text style={styles.seeAllText}>عرض الكل | View all</Text>
             </TouchableOpacity>
           </View>
           <CategoryGrid
             categories={categories}
             selectedId={selectedCategory}
-            onSelect={(id) => { setSelectedCategory(id); setSearchQuery(''); setSearch(''); }}
+            onSelect={(id) => { setSelectedCategory(id); }}
           />
         </View>
       )}
 
-      {/* ── Popular Cities ── */}
-      {!hasFilters && (
-        <View style={styles.section}>
-          <Text style={styles.smallLabel}>Popular Cities</Text>
-          <View style={styles.citiesWrap}>
-            {VISIBLE_CITIES.map((city) => (
-              <TouchableOpacity
-                key={city}
-                style={styles.cityChip}
-                activeOpacity={0.7}
-                onPress={() => setFilters((p) => ({ ...p, cities: [city] }))}
-              >
-                <Text style={styles.cityChipText}>{city}</Text>
-              </TouchableOpacity>
-            ))}
-            {MORE_CITIES_COUNT > 0 && (
-              <TouchableOpacity
-                style={styles.moreCitiesChip}
-                activeOpacity={0.7}
-                onPress={() => setFilterVisible(true)}
-              >
-                <Text style={styles.moreCitiesText}>+ {MORE_CITIES_COUNT} more</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-      )}
-
-      {/* ── Featured Listings (2-col grid) ── */}
+      {/* ── Featured Listings ── */}
       {featuredListings.length > 0 && !hasFilters && (
         <View style={styles.section}>
           <View style={styles.sectionRow}>
-            <Text style={styles.sectionTitle}>Featured Listings</Text>
-            <TouchableOpacity style={styles.seeAll}>
-              <Text style={styles.seeAllText}>See all</Text>
-              <Ionicons name="arrow-forward" size={12} color="#15803d" />
-            </TouchableOpacity>
+            <Text style={styles.sectionTitle}>منتجات مميزة | Featured Products</Text>
           </View>
           <View style={styles.gridWrap}>
             {featuredListings.map((item) => (
@@ -238,14 +273,11 @@ export default function HomeScreen() {
       {/* ── Section heading for main grid ── */}
       <View style={[styles.sectionRow, { marginBottom: 4 }]}>
         <Text style={styles.sectionTitle}>
-          {hasFilters
-            ? searchQuery ? `Results for "${searchQuery}"` : 'Listings'
-            : 'Recommended for you'}
+          {hasFilters ? 'النتائج | Results' : 'منتجات متاحة | Available Products'}
         </Text>
         {!hasFilters && (
-          <TouchableOpacity style={styles.seeAll}>
-            <Text style={styles.seeAllText}>View all</Text>
-            <Ionicons name="arrow-forward" size={12} color="#15803d" />
+          <TouchableOpacity style={styles.seeAll} onPress={() => router.push('/(tabs)/browse')}>
+            <Text style={styles.seeAllText}>عرض الكل | View all</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -254,14 +286,14 @@ export default function HomeScreen() {
 
   const CtaBanner = (
     <View style={styles.ctaBanner}>
-      <Text style={styles.ctaTitle}>Ready to start selling?</Text>
+      <Text style={styles.ctaTitle}>جاهز للبيع؟ | Ready to start selling?</Text>
       <Text style={styles.ctaSubtitle}>Join thousands of sellers across Algeria</Text>
       <TouchableOpacity
         style={styles.ctaBtn}
         activeOpacity={0.85}
         onPress={() => router.push('/(auth)/register')}
       >
-        <Text style={styles.ctaBtnText}>Become a Seller</Text>
+        <Text style={styles.ctaBtnText}>كن بائعاً | Become a Seller</Text>
       </TouchableOpacity>
     </View>
   );
@@ -272,15 +304,14 @@ export default function HomeScreen() {
       <SearchBar
         value={search}
         onChangeText={setSearch}
-        onSubmit={() => setSearchQuery(search)}
-        placeholder="Search items, categories or locations..."
+        onSubmit={() => { if (search.trim()) { goSearch(search); setSearch(''); } }}
+        placeholder="ابحث عن منتج…  |  Search for a product…"
       />
       <FlashList
         data={listings}
         renderItem={renderListing}
         keyExtractor={(item) => item.id}
         numColumns={2}
-        estimatedItemSize={240}
         ListHeaderComponent={ListHeader}
         ListEmptyComponent={
           !loading ? (
@@ -320,42 +351,32 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#fff' },
 
-  hero: {
-    backgroundColor: '#14532d',
-    paddingHorizontal: 20,
-    paddingTop: 24,
-    paddingBottom: 28,
-    marginHorizontal: -12,
+  // Country chips
+  countryRow: { paddingHorizontal: 14, paddingVertical: 10, gap: 9, flexDirection: 'row' },
+  countryChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 7,
+    paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12,
+    borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#fff',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3, elevation: 1,
   },
-  heroTitle: { fontSize: 28, fontWeight: '900', color: '#fff' },
-  heroSubTitle: { fontSize: 28, fontWeight: '900', color: '#86efac' },
-  heroDesc: { fontSize: 13, color: '#bbf7d0', marginTop: 8, lineHeight: 19 },
-  heroBtns: { flexDirection: 'row', gap: 10, marginTop: 20 },
-  heroExploreBtn: {
-    borderWidth: 1.5, borderColor: '#fff', borderRadius: 8,
-    paddingHorizontal: 18, paddingVertical: 10,
-  },
-  heroExploreBtnText: { color: '#fff', fontWeight: '600', fontSize: 14 },
-  heroSellBtn: {
-    backgroundColor: '#fff', borderRadius: 8,
-    paddingHorizontal: 18, paddingVertical: 10,
-  },
-  heroSellBtnText: { color: '#14532d', fontWeight: '700', fontSize: 14 },
+  countryFlag: { fontSize: 16 },
+  countryName: { fontSize: 13.5, color: '#374151', fontWeight: '600' },
 
-  // Shop from Abroad banner
-  abroadBanner: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    marginHorizontal: -12, marginTop: 0,
-    backgroundColor: '#f0fdf4', borderBottomWidth: 1, borderBottomColor: '#bbf7d0',
-    paddingHorizontal: 20, paddingVertical: 14,
+  // Featured travelers
+  travelersRow: { paddingHorizontal: 14, gap: 16, flexDirection: 'row', paddingBottom: 6 },
+  travelerCard: { alignItems: 'center', width: 86 },
+  travelerAvatarWrap: { position: 'relative' },
+  travelerAvatar: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#f3f4f6' },
+  travelerAvatarFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: '#dcfce7' },
+  travelerInitial: { fontSize: 24, fontWeight: '800', color: '#15803d' },
+  travelerFlag: {
+    position: 'absolute', bottom: -2, right: -2,
+    backgroundColor: '#fff', borderRadius: 999, padding: 2,
+    borderWidth: 1, borderColor: '#f3f4f6',
   },
-  abroadEmoji: { fontSize: 28 },
-  abroadTitle: { fontSize: 15, fontWeight: '800', color: '#14532d' },
-  abroadSub: { fontSize: 11, color: '#16a34a', marginTop: 1 },
-  abroadArrow: {
-    width: 30, height: 30, borderRadius: 15,
-    backgroundColor: '#dcfce7', alignItems: 'center', justifyContent: 'center',
-  },
+  travelerName: { fontSize: 13, fontWeight: '700', color: '#111827', marginTop: 6 },
+  travelerEtaAr: { fontSize: 10.5, color: '#16a34a', fontWeight: '700', marginTop: 2 },
+  travelerEtaEn: { fontSize: 10, color: '#6b7280' },
 
   section: { marginBottom: 4 },
   sectionRow: {
@@ -365,28 +386,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: '#111827' },
-  smallLabel: {
-    fontSize: 13, fontWeight: '600', color: '#6b7280',
-    paddingHorizontal: 16, paddingBottom: 10, paddingTop: 4,
-  },
+  sectionTitle: { fontSize: 15, fontWeight: '800', color: '#111827' },
   seeAll: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  seeAllText: { fontSize: 13, color: '#15803d', fontWeight: '500' },
-
-  citiesWrap: {
-    flexDirection: 'row', flexWrap: 'wrap',
-    paddingHorizontal: 12, gap: 8, paddingBottom: 8,
-  },
-  cityChip: {
-    paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999,
-    borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#fff',
-  },
-  cityChipText: { fontSize: 13, color: '#374151' },
-  moreCitiesChip: {
-    paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999,
-    borderWidth: 1, borderColor: '#86efac', backgroundColor: '#dcfce7',
-  },
-  moreCitiesText: { fontSize: 13, color: '#15803d', fontWeight: '600' },
+  seeAllText: { fontSize: 12, color: '#15803d', fontWeight: '700' },
 
   gridWrap: { flexDirection: 'row', flexWrap: 'wrap' },
 
@@ -404,7 +406,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#14532d', borderRadius: 16, marginHorizontal: 4,
     marginTop: 16, marginBottom: 8, padding: 24, alignItems: 'center',
   },
-  ctaTitle: { fontSize: 20, fontWeight: '800', color: '#fff', textAlign: 'center' },
+  ctaTitle: { fontSize: 18, fontWeight: '800', color: '#fff', textAlign: 'center' },
   ctaSubtitle: {
     fontSize: 13, color: '#bbf7d0', marginTop: 6, textAlign: 'center', lineHeight: 18,
   },

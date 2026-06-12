@@ -9,13 +9,13 @@ const KABA = '#15803d';
 const INACTIVE = '#9ca3af';
 
 const LEFT_TABS = [
-  { name: 'Home',   href: '/',       iconOff: 'home-outline',  iconOn: 'home'  },
-  { name: 'Browse', href: '/browse', iconOff: 'grid-outline',  iconOn: 'grid'  },
+  { name: 'Home',       ar: 'الرئيسية', href: '/',       iconOff: 'home-outline',  iconOn: 'home'  },
+  { name: 'Categories', ar: 'الفئات',   href: '/browse', iconOff: 'grid-outline',  iconOn: 'grid'  },
 ] as const;
 
 const RIGHT_TABS = [
-  { name: 'Messages', href: '/messages', iconOff: 'chatbubbles-outline', iconOn: 'chatbubbles' },
-  { name: 'Profile',  href: '/profile',  iconOff: 'person-outline',      iconOn: 'person'      },
+  { name: 'Messages', ar: 'الرسائل',      href: '/messages', iconOff: 'chatbubbles-outline', iconOn: 'chatbubbles' },
+  { name: 'Profile',  ar: 'الملف الشخصي', href: '/profile',  iconOff: 'person-outline',      iconOn: 'person'      },
 ] as const;
 
 /** Persistent bottom tab bar — lives in root layout, visible on every screen. */
@@ -26,8 +26,8 @@ export function AppTabBar() {
   const session = useAuthStore((s) => s.session);
   const profile = useAuthStore((s) => s.profile);
 
-  // Hide on auth screens
-  if (pathname.startsWith('/login') || pathname.startsWith('/register')) {
+  // Hide on auth + onboarding screens
+  if (pathname.startsWith('/login') || pathname.startsWith('/register') || pathname.startsWith('/welcome')) {
     return null;
   }
 
@@ -56,7 +56,7 @@ export function AppTabBar() {
     }
   };
 
-  const renderTab = (tab: { name: string; href: string; iconOff: string; iconOn: string }) => {
+  const renderTab = (tab: { name: string; ar: string; href: string; iconOff: string; iconOn: string }) => {
     const active = tab.href === activeHref;
     return (
       <TouchableOpacity
@@ -70,6 +70,7 @@ export function AppTabBar() {
           size={24}
           color={active ? KABA : INACTIVE}
         />
+        <Text style={[styles.labelAr, active && styles.labelActive]}>{tab.ar}</Text>
         <Text style={[styles.label, active && styles.labelActive]}>{tab.name}</Text>
       </TouchableOpacity>
     );
@@ -107,8 +108,13 @@ const styles = StyleSheet.create({
     gap: 2,
     paddingBottom: 2,
   },
-  label: {
+  labelAr: {
     fontSize: 11,
+    fontWeight: '700',
+    color: INACTIVE,
+  },
+  label: {
+    fontSize: 9.5,
     fontWeight: '600',
     color: INACTIVE,
   },

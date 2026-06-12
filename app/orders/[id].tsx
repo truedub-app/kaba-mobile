@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  ActivityIndicator, Alert, Image,
+  ActivityIndicator, Alert, Image, Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
@@ -19,11 +19,11 @@ const TIMELINE_STEPS: ImportRequestStatus[] = [
   'released_to_seller',
 ];
 
-const STEP_DESC: Partial<Record<ImportRequestStatus, string>> = {
-  awaiting_verification: 'Admin is reviewing your BaridiMob receipt',
-  deposit_held:          'Contractor has been notified to purchase your item',
-  in_transit:            'Item is on its way — confirm once you receive it',
-  released_to_seller:    'Order complete. Thank you!',
+const STEP_LABELS: Partial<Record<ImportRequestStatus, { ar: string; en: string; desc: string }>> = {
+  awaiting_verification: { ar: 'طلب مؤكد',     en: 'Order Confirmed', desc: 'Deposit receipt under review' },
+  deposit_held:          { ar: 'تم قبول الطلب', en: 'Request Accepted', desc: 'Traveler is purchasing your item' },
+  in_transit:            { ar: 'في الطريق',     en: 'In Transit',       desc: 'Traveler is on the way to Algeria' },
+  released_to_seller:    { ar: 'تم التسليم',    en: 'Delivered',        desc: 'Order complete. Thank you!' },
 };
 
 const TERMINAL: ImportRequestStatus[] = ['disputed', 'liquidated', 'refunded'];
@@ -41,7 +41,7 @@ export default function OrderDetailScreen() {
     if (!id) return;
     const { data } = await supabase
       .from('import_requests')
-      .select('*, contractor:profiles!contractor_id(id, full_name, whatsapp_number)')
+      .select('*, contractor:profiles!contractor_id(id, full_name, avatar_url, whatsapp_number)')
       .eq('id', id)
       .single();
     setOrder(data as ImportRequest | null);
@@ -53,8 +53,8 @@ export default function OrderDetailScreen() {
   const confirmDelivery = async () => {
     if (!order) return;
     Alert.alert(
-      'Confirm Delivery',
-      'Confirm you have received the item and are satisfied? This releases the escrow to the contractor.',
+      'تأكيد الاستلام | Confirm Delivery',
+      'Confirm you have received the item and are satisfied? This releases the escrow to the traveler.',
       [
         { text: 'Not Yet', style: 'cancel' },
         {
@@ -102,7 +102,7 @@ export default function OrderDetailScreen() {
   if (loading || !order) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
-        <Header onBack={() => router.back()} />
+        <Header onBack={() => router.back()} orderId="" />
         <ActivityIndicator color="#15803d" style={{ marginTop: 40 }} />
       </SafeAreaView>
     );
@@ -112,21 +112,15 @@ export default function OrderDetailScreen() {
   const isTerminal = TERMINAL.includes(order.status);
   const isBuyer    = session?.user?.id === order.buyer_id;
   const showActions = isBuyer && order.status === 'in_transit' && !order.buyer_confirmed_at;
+  const contractor  = order.contractor as any;
+  const whatsapp    = contractor?.whatsapp_number as string | undefined;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <Header onBack={() => router.back()} />
+      <Header onBack={() => router.back()} orderId={`#KB-${order.id.slice(0, 4).toUpperCase()}`} />
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        {/* Order ID */}
-        <Text style={styles.orderId}>
-          #{order.id.slice(0, 8).toUpperCase()} ·{' '}
-          {new Date(order.created_at).toLocaleDateString('en-GB', {
-            day: 'numeric', month: 'long', year: 'numeric',
-          })}
-        </Text>
-
-        {/* Product */}
+        {/* Product + traveler */}
         <View style={styles.card}>
           <View style={styles.productRow}>
             {order.product_image ? (
@@ -142,12 +136,21 @@ export default function OrderDetailScreen() {
             )}
             <View style={{ flex: 1 }}>
               <Text style={styles.productTitle} numberOfLines={3}>{order.product_title}</Text>
-              <Text style={styles.productPlatform}>{order.product_platform}</Text>
+              <View style={styles.travelerRow}>
+                <View style={styles.travelerAvatar}>
+                  <Text style={styles.travelerInitial}>
+                    {contractor?.full_name?.[0]?.toUpperCase() ?? 'T'}
+                  </Text>
+                </View>
+                <Text style={styles.travelerLabel}>
+                  Traveler: <Text style={styles.travelerName}>{contractor?.full_name ?? 'Traveler'}</Text>
+                </Text>
+              </View>
             </View>
           </View>
         </View>
 
-        {/* Status */}
+        {/* Status timeline */}
         {isTerminal ? (
           <View style={[styles.card, order.status === 'refunded' ? styles.terminalGray : styles.terminalRed]}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -165,94 +168,106 @@ export default function OrderDetailScreen() {
             ) : null}
           </View>
         ) : (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Order Progress</Text>
-            {/* Timeline */}
-            <View style={styles.timeline}>
-              {TIMELINE_STEPS.map((step, idx) => {
-                const done   = idx < currentIdx;
-                const active = idx === currentIdx;
-                return (
-                  <View key={step} style={styles.timelineRow}>
-                    {/* Line connector */}
-                    {idx > 0 && (
-                      <View style={[styles.timelineLine, done && styles.timelineLineDone]} />
-                    )}
-                    {/* Dot */}
-                    <View
-                      style={[
-                        styles.timelineDot,
-                        done   && styles.timelineDotDone,
-                        active && styles.timelineDotActive,
-                      ]}
-                    >
-                      {done ? (
-                        <Ionicons name="checkmark" size={12} color="#fff" />
-                      ) : active ? (
-                        <View style={styles.timelineDotInner} />
-                      ) : null}
-                    </View>
-                    {/* Label */}
-                    <View style={styles.timelineLabel}>
-                      <Text
-                        style={[
-                          styles.timelineStep,
-                          done   && { color: '#374151' },
-                          active && { color: '#15803d', fontWeight: '700' },
-                          !done && !active && { color: '#9ca3af' },
-                        ]}
-                      >
-                        {STATUS_LABELS[step]}
-                      </Text>
-                      {active && STEP_DESC[step] ? (
-                        <Text style={styles.timelineDesc}>{STEP_DESC[step]}</Text>
-                      ) : null}
-                    </View>
+          <View style={styles.timeline}>
+            {TIMELINE_STEPS.map((step, idx) => {
+              const done   = idx < currentIdx;
+              const active = idx === currentIdx;
+              const info   = STEP_LABELS[step]!;
+              const isTransitActive = active && step === 'in_transit';
+
+              return (
+                <View key={step} style={styles.timelineRow}>
+                  {/* Connector */}
+                  {idx < TIMELINE_STEPS.length - 1 && (
+                    <View style={[styles.timelineLine, done && styles.timelineLineDone]} />
+                  )}
+                  {/* Node */}
+                  <View style={[
+                    styles.node,
+                    (done || active) && styles.nodeDone,
+                    isTransitActive && styles.nodeTransit,
+                  ]}>
+                    {isTransitActive ? (
+                      <Ionicons name="airplane" size={15} color="#fff" />
+                    ) : done || active ? (
+                      <Ionicons name="checkmark" size={15} color="#fff" />
+                    ) : null}
                   </View>
-                );
-              })}
-            </View>
+                  {/* Content */}
+                  <View style={[styles.stepContent, isTransitActive && styles.stepContentTransit]}>
+                    <Text style={[
+                      styles.stepTitle,
+                      (done || active) ? { color: '#111827' } : { color: '#9ca3af' },
+                    ]}>
+                      {info.ar} | {info.en}
+                    </Text>
+                    {(active || done) && (
+                      <Text style={styles.stepDesc}>{info.desc}</Text>
+                    )}
+                    {isTransitActive && (
+                      <Text style={styles.stepEta}>✈️ Confirm once the item is in your hands</Text>
+                    )}
+                  </View>
+                </View>
+              );
+            })}
           </View>
         )}
 
-        {/* Payment summary */}
+        {/* Remaining payment banner */}
+        {!isTerminal && order.status !== 'released_to_seller' && (
+          <View style={styles.codBanner}>
+            <Text style={{ fontSize: 18 }}>💰</Text>
+            <Text style={styles.codBannerText}>
+              Remaining: <Text style={styles.codAmount}>{formatPrice(order.cod_dzd)}</Text> (pay on delivery)
+            </Text>
+          </View>
+        )}
+
+        {/* Contact traveler */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Payment Summary</Text>
-          <Row label="Contractor Total"      value={formatPrice(order.contractor_total_dzd)} />
-          <Row label="Security Deposit (20%)" value={formatPrice(order.deposit_dzd)} />
-          <Row label="Platform Fee (5%)"      value={formatPrice(order.buyer_fee_dzd)} />
-          <View style={styles.divider} />
-          <Row label="Paid Upfront (25%)"     value={formatPrice(order.upfront_dzd)} bold accent />
-          <View style={styles.codBox}>
-            <Row label="Cash on Delivery (80%)" value={formatPrice(order.cod_dzd)} />
-            <Text style={styles.codNote}>Paid directly to contractor on delivery</Text>
+          <Text style={styles.cardTitle}>تواصل مع المسافر | Contact Traveler</Text>
+          <View style={styles.contactRow}>
+            <TouchableOpacity
+              style={styles.contactBtn}
+              activeOpacity={0.8}
+              onPress={() => {
+                if (whatsapp) Linking.openURL(`https://wa.me/${whatsapp.replace(/[^\d]/g, '')}`);
+                else Alert.alert('Unavailable', 'This traveler has no WhatsApp number yet.');
+              }}
+            >
+              <Ionicons name="chatbox-ellipses-outline" size={18} color="#166534" />
+              <Text style={styles.contactBtnText}>رسالة | Message</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.contactBtn}
+              activeOpacity={0.8}
+              onPress={() => {
+                if (whatsapp) Linking.openURL(`tel:${whatsapp}`);
+                else Alert.alert('Unavailable', 'This traveler has no phone number yet.');
+              }}
+            >
+              <Ionicons name="call-outline" size={18} color="#166534" />
+              <Text style={styles.contactBtnText}>اتصال | Call</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
-        {/* Contractor */}
+        {/* Payment summary */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Contractor</Text>
-          <View style={styles.contractorRow}>
-            <View style={styles.contractorAvatar}>
-              <Text style={styles.contractorInitial}>
-                {order.contractor?.full_name?.[0]?.toUpperCase() ?? 'C'}
-              </Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.contractorName}>{order.contractor?.full_name ?? 'Contractor'}</Text>
-              {order.contractor?.whatsapp_number ? (
-                <Text style={styles.whatsapp}>
-                  WhatsApp: {order.contractor.whatsapp_number}
-                </Text>
-              ) : null}
-            </View>
-          </View>
+          <Text style={styles.cardTitle}>ملخص الدفع | Payment Summary</Text>
+          <Row label="Total" value={formatPrice(order.contractor_total_dzd)} />
+          <Row label="Security Deposit (20%)" value={formatPrice(order.deposit_dzd)} />
+          <Row label="Platform Fee (5%)" value={formatPrice(order.buyer_fee_dzd)} />
+          <View style={styles.divider} />
+          <Row label="Paid Upfront (25%)" value={formatPrice(order.upfront_dzd)} bold accent />
+          <Row label="Cash on Delivery (80%)" value={formatPrice(order.cod_dzd)} />
         </View>
 
         {/* Receipt */}
         {order.receipt_url ? (
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Payment Receipt</Text>
+            <Text style={styles.cardTitle}>إيصال الدفع | Payment Receipt</Text>
             <Image
               source={{ uri: order.receipt_url }}
               style={styles.receiptImg}
@@ -274,10 +289,6 @@ export default function OrderDetailScreen() {
         {/* Buyer actions */}
         {showActions && (
           <View style={styles.actionsBox}>
-            <Text style={styles.actionsTitle}>Item Arrived?</Text>
-            <Text style={styles.actionsSubtitle}>
-              Confirm delivery once you've received your item. This releases the escrow to the contractor.
-            </Text>
             <TouchableOpacity
               style={[styles.confirmBtn, actioning && { opacity: 0.6 }]}
               onPress={confirmDelivery}
@@ -289,7 +300,7 @@ export default function OrderDetailScreen() {
               ) : (
                 <>
                   <Ionicons name="checkmark-circle-outline" size={18} color="#fff" />
-                  <Text style={styles.confirmBtnText}>Confirm Delivery</Text>
+                  <Text style={styles.confirmBtnText}>تأكيد الاستلام | Confirm Delivery</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -311,25 +322,25 @@ export default function OrderDetailScreen() {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Ionicons name="checkmark-circle" size={16} color="#15803d" />
               <Text style={{ fontSize: 13, fontWeight: '600', color: '#15803d' }}>
-                You confirmed delivery — waiting for contractor to confirm.
+                You confirmed delivery — waiting for traveler to confirm.
               </Text>
             </View>
           </View>
         )}
 
-        <View style={{ height: 32 }} />
+        <View style={{ height: 90 }} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-function Header({ onBack }: { onBack: () => void }) {
+function Header({ onBack, orderId }: { onBack: () => void; orderId: string }) {
   return (
     <View style={styles.header}>
-      <TouchableOpacity onPress={onBack} style={styles.backBtn}>
+      <TouchableOpacity onPress={onBack} style={styles.backBtn} hitSlop={8}>
         <Ionicons name="arrow-back" size={22} color="#111827" />
       </TouchableOpacity>
-      <Text style={styles.headerTitle}>Order Details</Text>
+      <Text style={styles.headerTitle}>تتبع الطلب | Track Order {orderId}</Text>
     </View>
   );
 }
@@ -344,29 +355,35 @@ function Row({ label, value, bold, accent }: { label: string; value: string; bol
 }
 
 const styles = StyleSheet.create({
-  safe:   { flex: 1, backgroundColor: '#f9fafb' },
+  safe:   { flex: 1, backgroundColor: '#fff' },
   header: {
     flexDirection: 'row', alignItems: 'center', padding: 16,
-    backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e5e7eb',
+    backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6',
   },
   backBtn:     { padding: 4, marginRight: 10 },
-  headerTitle: { fontSize: 18, fontWeight: '800', color: '#111827' },
+  headerTitle: { fontSize: 16.5, fontWeight: '800', color: '#111827' },
   scroll:      { padding: 16 },
 
-  orderId: { fontSize: 12, color: '#9ca3af', marginBottom: 12 },
-
   card: {
-    backgroundColor: '#fff', borderRadius: 14,
-    borderWidth: 1, borderColor: '#e5e7eb',
+    backgroundColor: '#fff', borderRadius: 16,
+    borderWidth: 1, borderColor: '#f3f4f6',
     padding: 14, marginBottom: 12,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.03, shadowRadius: 6, elevation: 1,
   },
-  cardTitle: { fontSize: 14, fontWeight: '700', color: '#111827', marginBottom: 10 },
+  cardTitle: { fontSize: 14, fontWeight: '800', color: '#111827', marginBottom: 10 },
 
-  productRow:      { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
-  productImg:      { width: 72, height: 72, borderRadius: 10, backgroundColor: '#f3f4f6' },
+  productRow:      { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
+  productImg:      { width: 76, height: 76, borderRadius: 12, backgroundColor: '#f9fafb' },
   imgPlaceholder:  { alignItems: 'center', justifyContent: 'center' },
-  productTitle:    { fontSize: 13, fontWeight: '600', color: '#111827', lineHeight: 18 },
-  productPlatform: { fontSize: 11, color: '#9ca3af', marginTop: 3 },
+  productTitle:    { fontSize: 14.5, fontWeight: '700', color: '#111827', lineHeight: 20 },
+  travelerRow:     { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 8 },
+  travelerAvatar:  {
+    width: 28, height: 28, borderRadius: 14, backgroundColor: '#dcfce7',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  travelerInitial: { fontSize: 12, fontWeight: '800', color: '#15803d' },
+  travelerLabel:   { fontSize: 12.5, color: '#6b7280' },
+  travelerName:    { color: '#15803d', fontWeight: '800' },
 
   terminalGray: { backgroundColor: '#f9fafb', borderColor: '#e5e7eb' },
   terminalRed:  { backgroundColor: '#fef2f2', borderColor: '#fecaca' },
@@ -374,61 +391,67 @@ const styles = StyleSheet.create({
   terminalNote:  { fontSize: 12, color: '#6b7280', marginTop: 6 },
 
   /* Timeline */
-  timeline: { gap: 0 },
-  timelineRow: { flexDirection: 'row', alignItems: 'flex-start', position: 'relative', paddingLeft: 28, paddingBottom: 16 },
+  timeline: { marginBottom: 12, paddingTop: 4 },
+  timelineRow: { flexDirection: 'row', alignItems: 'flex-start', position: 'relative', paddingLeft: 44, paddingBottom: 18, minHeight: 58 },
   timelineLine: {
-    position: 'absolute', left: 11, top: -8, bottom: 8,
-    width: 2, backgroundColor: '#e5e7eb',
+    position: 'absolute', left: 15, top: 32, bottom: -4,
+    width: 2.5, backgroundColor: '#e5e7eb', borderRadius: 2,
   },
   timelineLineDone: { backgroundColor: '#15803d' },
-  timelineDot: {
-    position: 'absolute', left: 4, top: 2,
-    width: 16, height: 16, borderRadius: 8,
-    borderWidth: 2, borderColor: '#d1d5db',
+  node: {
+    position: 'absolute', left: 0, top: 0,
+    width: 32, height: 32, borderRadius: 16,
+    borderWidth: 2, borderColor: '#e5e7eb',
     backgroundColor: '#fff',
     alignItems: 'center', justifyContent: 'center',
   },
-  timelineDotDone:   { backgroundColor: '#15803d', borderColor: '#15803d' },
-  timelineDotActive: { borderColor: '#15803d' },
-  timelineDotInner:  { width: 6, height: 6, borderRadius: 3, backgroundColor: '#15803d' },
-  timelineLabel: { flex: 1 },
-  timelineStep:  { fontSize: 13, fontWeight: '600', color: '#374151' },
-  timelineDesc:  { fontSize: 11, color: '#9ca3af', marginTop: 2, lineHeight: 15 },
+  nodeDone:    { backgroundColor: '#15803d', borderColor: '#15803d' },
+  nodeTransit: { backgroundColor: '#15803d', borderColor: '#15803d' },
+  stepContent: { flex: 1, paddingTop: 2 },
+  stepContentTransit: {
+    backgroundColor: '#f0fdf4', borderRadius: 14, padding: 12, marginTop: -6,
+    borderWidth: 1, borderColor: '#dcfce7',
+  },
+  stepTitle: { fontSize: 14.5, fontWeight: '800' },
+  stepDesc:  { fontSize: 12, color: '#6b7280', marginTop: 3, lineHeight: 16 },
+  stepEta:   { fontSize: 12.5, color: '#15803d', fontWeight: '800', marginTop: 6 },
+
+  /* COD banner */
+  codBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 9,
+    backgroundColor: '#f0fdf4', borderRadius: 14,
+    borderWidth: 1, borderColor: '#dcfce7',
+    paddingHorizontal: 14, paddingVertical: 12, marginBottom: 12,
+  },
+  codBannerText: { fontSize: 13.5, color: '#374151', flex: 1 },
+  codAmount: { fontWeight: '900', color: '#166534' },
+
+  /* Contact */
+  contactRow: { flexDirection: 'row', gap: 10 },
+  contactBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7,
+    borderWidth: 1, borderColor: '#d1d5db', borderRadius: 12, paddingVertical: 12,
+    backgroundColor: '#fff',
+  },
+  contactBtnText: { fontSize: 13.5, fontWeight: '700', color: '#166534' },
 
   /* Payment rows */
   row:      { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
   rowLabel: { fontSize: 13, color: '#6b7280' },
   rowValue: { fontSize: 13, fontWeight: '700', color: '#111827' },
-  divider:  { height: 1, backgroundColor: '#e5e7eb', marginVertical: 8 },
-  codBox:   { backgroundColor: '#fffbeb', borderRadius: 10, padding: 10, marginTop: 6 },
-  codNote:  { fontSize: 10, color: '#a16207', marginTop: 2 },
-
-  /* Contractor */
-  contractorRow:    { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  contractorAvatar: {
-    width: 38, height: 38, borderRadius: 19,
-    backgroundColor: '#dcfce7',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  contractorInitial: { fontSize: 15, fontWeight: '800', color: '#15803d' },
-  contractorName:    { fontSize: 14, fontWeight: '600', color: '#111827' },
-  whatsapp:          { fontSize: 11, color: '#15803d', marginTop: 2 },
+  divider:  { height: 1, backgroundColor: '#f3f4f6', marginVertical: 8 },
 
   receiptImg: { width: '100%', height: 200, borderRadius: 10, marginTop: 4 },
 
   /* Actions */
-  actionsBox: {
-    backgroundColor: '#f0fdf4', borderRadius: 14, borderWidth: 1,
-    borderColor: '#bbf7d0', padding: 14, marginBottom: 12,
-  },
-  actionsTitle:    { fontSize: 14, fontWeight: '700', color: '#14532d', marginBottom: 4 },
-  actionsSubtitle: { fontSize: 12, color: '#166534', lineHeight: 16, marginBottom: 12 },
+  actionsBox: { marginBottom: 12 },
   confirmBtn: {
-    backgroundColor: '#15803d', borderRadius: 12, paddingVertical: 13,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    backgroundColor: '#166534', borderRadius: 14, paddingVertical: 16,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7,
     marginBottom: 10,
+    shadowColor: '#166534', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.22, shadowRadius: 9, elevation: 4,
   },
-  confirmBtnText: { color: '#fff', fontWeight: '800', fontSize: 14 },
+  confirmBtnText: { color: '#fff', fontWeight: '800', fontSize: 15 },
   disputeBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8,
   },
