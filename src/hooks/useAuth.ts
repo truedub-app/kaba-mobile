@@ -61,7 +61,9 @@ export const useAuthStore = create<AuthStore>((set) => ({
 
     // ── Native (iOS / Android) ───────────────────────────────────────────────
     // Open an in-app browser, intercept the redirect, exchange the code manually.
-    const redirectTo = Linking.createURL('');
+    // Must include a path: Supabase's "kaba://**" allow-list wildcard does not
+    // match the bare "kaba://" URL, causing a fallback redirect to the Site URL.
+    const redirectTo = Linking.createURL('auth/callback');
 
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
