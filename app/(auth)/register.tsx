@@ -37,6 +37,7 @@ export default function RegisterScreen() {
     const err = await signInWithGoogle();
     setGoogleLoading(false);
     if (err) setError(err);
+    else router.replace('/(tabs)');
   };
 
   if (success) {

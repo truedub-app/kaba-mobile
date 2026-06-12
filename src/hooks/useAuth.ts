@@ -72,32 +72,15 @@ export const useAuthStore = create<AuthStore>((set) => ({
 
     if (error || !data?.url) return error?.message ?? 'Failed to start Google sign-in';
 
-    console.log('[google-auth] redirectTo =', redirectTo);
-    console.log('[google-auth] authorize url =', data.url);
-
     const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
-
-    console.log('[google-auth] result.type =', result.type);
-    if (result.type === 'success') console.log('[google-auth] result.url =', result.url);
 
     if (result.type === 'success') {
       // exchangeCodeForSession expects the bare auth code, not the full URL —
       // passing the URL makes Supabase fail with "no valid flow state found"
       const code = result.url.match(/[?&]code=([^&#]+)/)?.[1];
-      console.log('[google-auth] extracted code =', code);
-      if (!code) {
-        return 'No auth code in redirect.\n\nDEBUG url: ' + result.url.slice(0, 300);
-      }
+      if (!code) return 'Google sign-in failed (no auth code in redirect)';
       const { error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
-      console.log('[google-auth] exchange error =', sessionError?.message ?? 'none');
-      if (sessionError) {
-        // Temporary diagnostic: surface what the app actually received so we
-        // can compare against the code Supabase issued (auth.flow_state).
-        return sessionError.message
-          + '\n\nDEBUG code: ' + code
-          + '\nDEBUG url: ' + result.url.slice(0, 300);
-      }
-      return null;
+      return sessionError?.message ?? null;
     }
     if (result.type === 'cancel') return null;
     return 'Google sign-in failed';

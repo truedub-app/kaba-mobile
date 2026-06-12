@@ -34,7 +34,7 @@ export default function LoginScreen() {
     const err = await signInWithGoogle();
     setGoogleLoading(false);
     if (err) setError(err);
-    // session change handled by onAuthStateChange in root layout
+    else router.replace('/(tabs)');
   };
 
   return (
