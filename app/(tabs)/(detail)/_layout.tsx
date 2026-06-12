@@ -9,7 +9,7 @@ const HEADER = {
 
 export default function DetailLayout() {
   return (
-    <Stack>
+    <Stack screenOptions={{ gestureEnabled: true, fullScreenGestureEnabled: true }}>
       <Stack.Screen name="listing/[id]"        options={{ headerShown: false }} />
       <Stack.Screen name="listing/create"       options={{ title: 'New Listing',    ...HEADER }} />
       <Stack.Screen name="listing/edit/[id]"    options={{ title: 'Edit Listing',   ...HEADER }} />

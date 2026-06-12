@@ -5,14 +5,23 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { Platform } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useAuthStore } from '@/src/hooks/useAuth';
 import { createTrip } from '@/src/hooks/useTrips';
 import { IMPORT_COUNTRIES, countryFlag } from '@/src/types';
 import { SelectModal } from '@/components/SelectModal';
 
-// Countries a contractor can travel from (exclude Algeria — that's home)
-const DESTINATION_COUNTRIES = IMPORT_COUNTRIES.filter((c) => c !== 'Algeria');
+// Countries a contractor can import from (exclude Algeria — that's home)
+const IMPORT_FROM_COUNTRIES = IMPORT_COUNTRIES.filter((c) => c !== 'Algeria');
+
+/** Format a Date as local YYYY-MM-DD (no UTC shift) */
+function toDateString(d: Date): string {
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${m}-${day}`;
+}
 
 export default function CreateTripScreen() {
   const router  = useRouter();
@@ -23,36 +32,31 @@ export default function CreateTripScreen() {
   const [showCountry,    setShowCountry]    = useState(false);
   const [sourceCountry,  setSourceCountry]  = useState('');
   const [sourceCity,     setSourceCity]     = useState('');
-  const [departureDate,  setDepartureDate]  = useState('');
-  const [returnDate,     setReturnDate]     = useState('');
+  const [arrivalDate,    setArrivalDate]    = useState<Date | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [maxWeightKg,    setMaxWeightKg]    = useState('');
   const [notes,          setNotes]          = useState('');
 
   const isEligible = profile?.role === 'seller' || profile?.role === 'admin';
 
-  // Compute ETA preview
-  const etaPreview = returnDate
-    ? new Date(
-        new Date(`${returnDate}T00:00:00`).getTime() + 3 * 86_400_000
-      ).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+  // Compute ETA preview (arrival + 3-day courier buffer)
+  const etaPreview = arrivalDate
+    ? new Date(arrivalDate.getTime() + 3 * 86_400_000)
+        .toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
     : null;
 
   const handleSubmit = async () => {
     if (!session?.user || !isEligible) return;
-    if (!sourceCountry) { Alert.alert('Missing', 'Please select the destination country.'); return; }
-    if (!departureDate) { Alert.alert('Missing', 'Please enter your departure date.'); return; }
-    if (!returnDate)    { Alert.alert('Missing', 'Please enter your return date.'); return; }
-    if (returnDate < departureDate) {
-      Alert.alert('Invalid Dates', 'Return date must be after departure date.');
-      return;
-    }
+    if (!sourceCountry) { Alert.alert('Missing', 'Please select the country of import.'); return; }
+    if (!arrivalDate)   { Alert.alert('Missing', 'Please select your arrival date.'); return; }
 
     setSubmitting(true);
     const { error } = await createTrip(session.user.id, {
       source_country: sourceCountry,
       source_city:    sourceCity.trim() || undefined,
-      departure_date: departureDate,
-      return_date:    returnDate,
+      // departure isn't shown to users anymore — the trip is live from today
+      departure_date: toDateString(new Date()),
+      return_date:    toDateString(arrivalDate),
       max_weight_kg:  maxWeightKg ? Number(maxWeightKg) : undefined,
       notes:          notes.trim() || undefined,
     });
@@ -100,7 +104,7 @@ export default function CreateTripScreen() {
         </Text>
 
         {/* Country */}
-        <Text style={styles.label}>Destination Country *</Text>
+        <Text style={styles.label}>بلد الاستيراد | Country of Import *</Text>
         <TouchableOpacity
           style={styles.pickerBtn}
           onPress={() => setShowCountry(true)}
@@ -124,31 +128,33 @@ export default function CreateTripScreen() {
           placeholderTextColor="#9ca3af"
         />
 
-        {/* Dates */}
-        <View style={styles.row}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.label}>Departure Date *</Text>
-            <TextInput
-              style={styles.input}
-              value={departureDate}
-              onChangeText={setDepartureDate}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor="#9ca3af"
-              keyboardType="numeric"
-            />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.label}>Return Date *</Text>
-            <TextInput
-              style={styles.input}
-              value={returnDate}
-              onChangeText={setReturnDate}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor="#9ca3af"
-              keyboardType="numeric"
-            />
-          </View>
-        </View>
+        {/* Arrival date */}
+        <Text style={styles.label}>الوصول إلى الجزائر | Arriving to Algeria *</Text>
+        <TouchableOpacity
+          style={styles.pickerBtn}
+          onPress={() => setShowDatePicker(true)}
+          activeOpacity={0.8}
+        >
+          <Text style={arrivalDate ? styles.pickerValue : styles.pickerPlaceholder}>
+            {arrivalDate
+              ? arrivalDate.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })
+              : 'Select date…'}
+          </Text>
+          <Ionicons name="calendar-outline" size={16} color="#9ca3af" />
+        </TouchableOpacity>
+        {showDatePicker && (
+          <DateTimePicker
+            value={arrivalDate ?? new Date()}
+            mode="date"
+            display={Platform.OS === 'ios' ? 'inline' : 'default'}
+            minimumDate={new Date()}
+            onChange={(_event, date) => {
+              setShowDatePicker(false);
+              if (date) setArrivalDate(date);
+            }}
+            accentColor="#15803d"
+          />
+        )}
 
         {/* ETA Preview */}
         {etaPreview && (
@@ -199,8 +205,8 @@ export default function CreateTripScreen() {
 
       <SelectModal
         visible={showCountry}
-        title="Destination Country"
-        options={DESTINATION_COUNTRIES as unknown as string[]}
+        title="Country of Import"
+        options={IMPORT_FROM_COUNTRIES as unknown as string[]}
         selected={sourceCountry}
         onSelect={setSourceCountry}
         onClose={() => setShowCountry(false)}

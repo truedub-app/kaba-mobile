@@ -13,10 +13,12 @@ const LEFT_TABS = [
   { name: 'Categories', ar: 'الفئات',   href: '/browse', iconOff: 'grid-outline',  iconOn: 'grid'  },
 ] as const;
 
-const RIGHT_TABS = [
-  { name: 'Messages', ar: 'الرسائل',      href: '/messages', iconOff: 'chatbubbles-outline', iconOn: 'chatbubbles' },
-  { name: 'Profile',  ar: 'الملف الشخصي', href: '/profile',  iconOff: 'person-outline',      iconOn: 'person'      },
-] as const;
+const MESSAGES_TAB = { name: 'Messages', ar: 'الرسائل', href: '/messages', iconOff: 'chatbubbles-outline', iconOn: 'chatbubbles' } as const;
+
+// Buyers get their Profile; sellers get the Seller Dashboard instead
+// (profile editing lives inside the dashboard for them).
+const PROFILE_TAB   = { name: 'Profile',   ar: 'الملف الشخصي', href: '/profile',          iconOff: 'person-outline',     iconOn: 'person'     } as const;
+const DASHBOARD_TAB = { name: 'Dashboard', ar: 'لوحة البائع',  href: '/seller-dashboard', iconOff: 'storefront-outline', iconOn: 'storefront' } as const;
 
 /** Persistent bottom tab bar — lives in root layout, visible on every screen. */
 export function AppTabBar() {
@@ -31,9 +33,12 @@ export function AppTabBar() {
     return null;
   }
 
+  const isSeller = profile?.role === 'seller' || profile?.role === 'admin';
+  const rightTabs = [MESSAGES_TAB, isSeller ? DASHBOARD_TAB : PROFILE_TAB];
+
   const activeHref = (() => {
     if (pathname === '/') return '/';
-    for (const tab of [...LEFT_TABS, ...RIGHT_TABS]) {
+    for (const tab of [...LEFT_TABS, ...rightTabs]) {
       if (tab.href !== '/' && pathname.startsWith(tab.href)) return tab.href;
     }
     return null;
@@ -87,7 +92,7 @@ export function AppTabBar() {
         </View>
       </TouchableOpacity>
 
-      {RIGHT_TABS.map(renderTab)}
+      {rightTabs.map(renderTab)}
     </View>
   );
 }

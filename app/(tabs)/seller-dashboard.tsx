@@ -162,9 +162,17 @@ export default function SellerDashboardScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
         {/* ── Dashboard header ── */}
         <View style={styles.dashHeader}>
-          <View>
+          <View style={{ flex: 1 }}>
             <Text style={styles.dashTitle}>Seller Dashboard</Text>
             <Text style={styles.dashSub}>Welcome back, {firstName}</Text>
+            <TouchableOpacity
+              style={styles.editProfileBtn}
+              activeOpacity={0.7}
+              onPress={() => router.push('/profile')}
+            >
+              <Ionicons name="person-circle-outline" size={15} color="#15803d" />
+              <Text style={styles.editProfileText}>تعديل الملف الشخصي | Edit Profile</Text>
+            </TouchableOpacity>
           </View>
           <TouchableOpacity style={styles.newListingBtn} activeOpacity={0.85} onPress={handleNewListing}>
             <Ionicons name="add" size={18} color="#fff" />
@@ -371,6 +379,12 @@ const styles = StyleSheet.create({
   importBtnOutline: { backgroundColor: '#fff', borderColor: '#15803d' },
   importBtnText:      { fontSize: 13, fontWeight: '700', color: '#15803d' },
   importBtnTextWhite: { fontSize: 13, fontWeight: '700', color: '#fff' },
+
+  editProfileBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    alignSelf: 'flex-start', marginTop: 6,
+  },
+  editProfileText: { fontSize: 12, fontWeight: '700', color: '#15803d' },
 
   listingsCard: {
     marginHorizontal: 12, borderRadius: 14,

@@ -41,17 +41,17 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <StatusBar style="dark" />
-      <Stack style={{ flex: 1 }}>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="(auth)"  options={{ headerShown: false }} />
-        <Stack.Screen name="welcome"    options={{ headerShown: false }} />
-        <Stack.Screen name="search"     options={{ headerShown: false }} />
-        <Stack.Screen name="trips"      options={{ headerShown: false }} />
-        <Stack.Screen name="abroad"     options={{ headerShown: false }} />
-        <Stack.Screen name="orders"     options={{ headerShown: false }} />
-        <Stack.Screen name="contractor" options={{ headerShown: false }} />
-        <Stack.Screen name="+not-found" />
-      </Stack>
+      {/* Global: no native headers (screens render their own) — fixes the
+          double back-button on trips/abroad/orders/contractor screens, whose
+          directory-level options never applied. Full-screen gesture lets
+          users swipe back from anywhere, not just the screen edge. */}
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          gestureEnabled: true,
+          fullScreenGestureEnabled: true,
+        }}
+      />
       <AppTabBar />
     </GestureHandlerRootView>
   );

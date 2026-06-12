@@ -1,13 +1,11 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import type { Category } from '@/src/types';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const PADDING = 16;
 const NUM_COLS = 3;
 const GAP = 10;
-const CELL_SIZE = (SCREEN_WIDTH - PADDING * 2 - GAP * (NUM_COLS - 1)) / NUM_COLS;
 
 const ICONS: Record<string, string> = {
   electronics: 'phone-portrait-outline',
@@ -30,14 +28,24 @@ interface Props {
 }
 
 export function CategoryGrid({ categories, selectedId, onSelect }: Props) {
+  // Measure the actual container (parents add their own padding, so
+  // computing from the screen width breaks the 3-column layout).
+  const [gridWidth, setGridWidth] = useState(0);
+  const cellSize = gridWidth > 0
+    ? (gridWidth - PADDING * 2 - GAP * (NUM_COLS - 1)) / NUM_COLS
+    : 0;
+
   return (
-    <View style={styles.grid}>
-      {categories.map((cat) => {
+    <View
+      style={styles.grid}
+      onLayout={(e) => setGridWidth(e.nativeEvent.layout.width)}
+    >
+      {cellSize > 0 && categories.map((cat) => {
         const active = selectedId === cat.id;
         return (
           <TouchableOpacity
             key={cat.id}
-            style={[styles.cell, active && styles.cellActive]}
+            style={[styles.cell, { width: cellSize }, active && styles.cellActive]}
             onPress={() => onSelect(active ? null : cat.id)}
             activeOpacity={0.8}
           >
@@ -66,7 +74,6 @@ const styles = StyleSheet.create({
     gap: GAP,
   },
   cell: {
-    width: CELL_SIZE,
     paddingVertical: 16,
     paddingHorizontal: 4,
     alignItems: 'center',
