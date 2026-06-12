@@ -5,7 +5,9 @@ import {
   Image, Dimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Platform } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useAuthStore } from '@/src/hooks/useAuth';
 import { supabase } from '@/src/lib/supabase';
@@ -45,6 +47,9 @@ export default function CreateListingScreen() {
   const [city, setCity] = useState('');
   const [originCountry, setOriginCountry] = useState('');
   const [isNegotiable, setIsNegotiable] = useState(false);
+  const [availableInAlgeria, setAvailableInAlgeria] = useState(true);
+  const [availableFrom, setAvailableFrom] = useState<Date | null>(null);
+  const [showAvailPicker, setShowAvailPicker] = useState(false);
   const [categoryId, setCategoryId] = useState('');
   const [imageUris, setImageUris] = useState<string[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -137,6 +142,10 @@ export default function CreateListingScreen() {
           city,
           origin_country: originCountry || null,
           is_negotiable: isNegotiable,
+          available_in_algeria: availableInAlgeria,
+          available_from: !availableInAlgeria && availableFrom
+            ? availableFrom.toISOString().split('T')[0]
+            : null,
           images: uploadedUrls,
           status: 'active',
           expires_at: expiresAt.toISOString(),
@@ -251,6 +260,53 @@ export default function CreateListingScreen() {
             thumbColor="#fff"
           />
         </View>
+
+        {/* Availability in Algeria */}
+        <View style={styles.switchRow}>
+          <View style={{ flex: 1, paddingRight: 10 }}>
+            <Text style={styles.label}>متوفر في الجزائر | Available in Algeria</Text>
+            <Text style={styles.switchSub}>
+              {availableInAlgeria
+                ? 'Item is already in Algeria'
+                : 'Being imported — set the arrival date below'}
+            </Text>
+          </View>
+          <Switch
+            value={availableInAlgeria}
+            onValueChange={(v) => { setAvailableInAlgeria(v); if (v) setAvailableFrom(null); }}
+            trackColor={{ true: '#15803d', false: '#d1d5db' }}
+            thumbColor="#fff"
+          />
+        </View>
+        {!availableInAlgeria && (
+          <>
+            <Text style={[styles.label, { marginTop: 10 }]}>
+              تاريخ التوفر | Date of availability in Algeria
+            </Text>
+            <TouchableOpacity
+              style={styles.availDateBtn}
+              onPress={() => setShowAvailPicker(true)}
+              activeOpacity={0.8}
+            >
+              <Text style={availableFrom ? styles.availDateValue : styles.availDatePlaceholder}>
+                {availableFrom
+                  ? availableFrom.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+                  : 'Select date…'}
+              </Text>
+              <Ionicons name="calendar-outline" size={16} color="#9ca3af" />
+            </TouchableOpacity>
+            {showAvailPicker && (
+              <DateTimePicker
+                value={availableFrom ?? new Date()}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'inline' : 'default'}
+                minimumDate={new Date()}
+                onChange={(_e, d) => { setShowAvailPicker(false); if (d) setAvailableFrom(d); }}
+                accentColor="#15803d"
+              />
+            )}
+          </>
+        )}
 
         {/* ── City ── */}
         <View style={styles.field}>
@@ -404,6 +460,14 @@ const styles = StyleSheet.create({
     paddingVertical: 12, marginBottom: 4,
   },
   switchSub: { fontSize: 12, color: '#9ca3af', marginTop: 2 },
+
+  availDateBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: '#fff', borderWidth: 1, borderColor: '#e5e7eb',
+    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, marginBottom: 4,
+  },
+  availDateValue: { fontSize: 14, color: '#111827' },
+  availDatePlaceholder: { fontSize: 14, color: '#9ca3af' },
 
   footer: {
     padding: 16, paddingBottom: 20,

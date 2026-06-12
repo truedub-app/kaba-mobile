@@ -312,6 +312,19 @@ export default function ListingDetailScreen() {
           </View>
         )}
 
+        {/* ── Availability banner (item being imported) ── */}
+        {listing.available_in_algeria === false && (
+          <View style={styles.availBanner}>
+            <Text style={{ fontSize: 15 }}>✈️</Text>
+            <Text style={styles.availBannerText}>
+              قادم إلى الجزائر | Arriving in Algeria
+              {listing.available_from
+                ? `: ${new Date(`${listing.available_from}T00:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}`
+                : ' soon'}
+            </Text>
+          </View>
+        )}
+
         {/* ── Description ── */}
         {listing.description && (
           <View style={styles.card}>
@@ -686,6 +699,14 @@ const styles = StyleSheet.create({
   },
   negoBadge: { backgroundColor: '#dcfce7', borderWidth: 1, borderColor: '#86efac' },
   badgeText: { fontSize: 12, color: '#374151', fontWeight: '500' },
+
+  availBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: '#fffbeb', borderWidth: 1, borderColor: '#fde68a',
+    borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10,
+    marginHorizontal: 16, marginTop: 10,
+  },
+  availBannerText: { flex: 1, fontSize: 12.5, fontWeight: '700', color: '#b45309' },
 
   /* Card sections */
   card: {

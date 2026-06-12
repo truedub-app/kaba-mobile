@@ -46,6 +46,9 @@ export interface Listing {
   images: string[];
   is_featured: boolean;
   is_negotiable: boolean;
+  /** FALSE = being imported; available_from holds expected arrival date */
+  available_in_algeria?: boolean;
+  available_from?: string | null;
   status: ListingStatus;
   views: number;
   specifications: Record<string, string>;

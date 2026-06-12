@@ -1,10 +1,10 @@
-import React, { useEffect } from 'react';
+import React, { useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
   ActivityIndicator, ScrollView, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useMyTrips, cancelTrip } from '@/src/hooks/useTrips';
 import { useAuthStore } from '@/src/hooks/useAuth';
@@ -50,11 +50,7 @@ function TripCard({ trip, onCancel }: { trip: TravelTrip; onCancel: () => void }
       <View style={styles.metaRow}>
         <View style={styles.meta}>
           <Ionicons name="calendar-outline" size={12} color="#9ca3af" />
-          <Text style={styles.metaText}>Departs: <Text style={styles.metaValue}>{trip.departure_date}</Text></Text>
-        </View>
-        <View style={styles.meta}>
-          <Ionicons name="calendar-outline" size={12} color="#9ca3af" />
-          <Text style={styles.metaText}>Returns: <Text style={styles.metaValue}>{trip.return_date}</Text></Text>
+          <Text style={styles.metaText}>Arriving to Algeria: <Text style={styles.metaValue}>{trip.return_date}</Text></Text>
         </View>
         {trip.max_weight_kg != null && (
           <View style={styles.meta}>
@@ -84,7 +80,11 @@ export default function TripsScreen() {
   const profile = useAuthStore((s) => s.profile);
   const { trips, loading, refresh } = useMyTrips();
 
-  useEffect(() => { refresh(); }, []);
+  // Reload every time the screen gains focus (e.g. returning from create)
+  useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
+
+  // Cancelled trips disappear from the list
+  const visibleTrips = trips.filter((t) => t.status !== 'cancelled');
 
   const handleCancel = (trip: TravelTrip) => {
     Alert.alert(
@@ -148,7 +148,7 @@ export default function TripsScreen() {
             <Text style={styles.greenBtnText}>Apply to Sell</Text>
           </TouchableOpacity>
         </View>
-      ) : trips.length === 0 ? (
+      ) : visibleTrips.length === 0 ? (
         <ScrollView contentContainerStyle={styles.centered}>
           <Ionicons name="airplane-outline" size={48} color="#d1d5db" />
           <Text style={styles.emptyTitle}>No trips yet</Text>
@@ -161,27 +161,15 @@ export default function TripsScreen() {
           >
             <Text style={styles.greenBtnText}>Register a Trip</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.secondaryBtn}
-            onPress={() => router.push('/abroad/post')}
-          >
-            <Text style={styles.secondaryBtnText}>Post an Abroad Item</Text>
-          </TouchableOpacity>
         </ScrollView>
       ) : (
         <ScrollView
           contentContainerStyle={{ padding: 16, gap: 12 }}
           showsVerticalScrollIndicator={false}
         >
-          {trips.map((trip) => (
+          {visibleTrips.map((trip) => (
             <TripCard key={trip.id} trip={trip} onCancel={() => handleCancel(trip)} />
           ))}
-          <TouchableOpacity
-            style={[styles.greenBtn, { marginTop: 4 }]}
-            onPress={() => router.push('/abroad/post')}
-          >
-            <Text style={styles.greenBtnText}>+ Post an Abroad Item</Text>
-          </TouchableOpacity>
         </ScrollView>
       )}
     </SafeAreaView>
