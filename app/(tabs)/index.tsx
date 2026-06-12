@@ -18,27 +18,13 @@ import { useAuthStore } from '@/src/hooks/useAuth';
 import { toggleFavorite } from '@/src/hooks/useFavorites';
 import { supabase } from '@/src/lib/supabase';
 import { getAvatarUrl } from '@/src/lib/utils';
+import { countryFlag } from '@/src/types';
 import type { Category, Listing, ListingFilters, TravelTrip, Profile } from '@/src/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_WIDTH = (SCREEN_WIDTH - 24 * 2 - 8) / 2;
 
 const FEATURED_SELECT = `*, seller:profiles!listings_seller_id_fkey(id, full_name, avatar_url, avg_rating, total_reviews, is_verified), category:categories(id, name, slug)`;
-
-const COUNTRY_CHIPS = [
-  { id: 'amazon-fr', flag: '🇫🇷', en: 'France' },
-  { id: 'amazon-ae', flag: '🇦🇪', en: 'UAE' },
-  { id: 'amazon-uk', flag: '🇬🇧', en: 'UK' },
-  { id: 'amazon-de', flag: '🇩🇪', en: 'Germany' },
-  { id: 'ebay-fr',   flag: '🇫🇷', en: 'eBay' },
-] as const;
-
-const COUNTRY_FLAGS: Record<string, string> = {
-  France: '🇫🇷', 'United Kingdom': '🇬🇧', UK: '🇬🇧',
-  'United Arab Emirates': '🇦🇪', UAE: '🇦🇪',
-  Germany: '🇩🇪', Turkey: '🇹🇷', 'Saudi Arabia': '🇸🇦',
-  Spain: '🇪🇸', Italy: '🇮🇹', USA: '🇺🇸', China: '🇨🇳', Qatar: '🇶🇦',
-};
 
 type TripWithContractor = TravelTrip & { contractor: Profile | null };
 
@@ -132,28 +118,6 @@ export default function HomeScreen() {
 
   const ListHeader = (
     <View>
-      {/* ── Country chips ── */}
-      {!hasFilters && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.countryRow}
-          style={{ flexGrow: 0 }}
-        >
-          {COUNTRY_CHIPS.map((c) => (
-            <TouchableOpacity
-              key={c.id}
-              style={styles.countryChip}
-              activeOpacity={0.8}
-              onPress={() => goSearch(undefined, c.id)}
-            >
-              <Text style={styles.countryFlag}>{c.flag}</Text>
-              <Text style={styles.countryName}>{c.en}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      )}
-
       {/* ── Featured Travelers ── */}
       {travelers.length > 0 && !hasFilters && (
         <View style={styles.section}>
@@ -191,7 +155,7 @@ export default function HomeScreen() {
                     )}
                     <View style={styles.travelerFlag}>
                       <Text style={{ fontSize: 13 }}>
-                        {COUNTRY_FLAGS[trip.source_country] ?? '✈️'}
+                        {countryFlag(trip.source_country)}
                       </Text>
                     </View>
                   </View>
@@ -243,7 +207,7 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
           <CategoryGrid
-            categories={categories}
+            categories={categories.slice(0, 9)}
             selectedId={selectedCategory}
             onSelect={(id) => { setSelectedCategory(id); }}
           />
@@ -350,17 +314,6 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#fff' },
-
-  // Country chips
-  countryRow: { paddingHorizontal: 14, paddingVertical: 10, gap: 9, flexDirection: 'row' },
-  countryChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 7,
-    paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12,
-    borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#fff',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3, elevation: 1,
-  },
-  countryFlag: { fontSize: 16 },
-  countryName: { fontSize: 13.5, color: '#374151', fontWeight: '600' },
 
   // Featured travelers
   travelersRow: { paddingHorizontal: 14, gap: 16, flexDirection: 'row', paddingBottom: 6 },

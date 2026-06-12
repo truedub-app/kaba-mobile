@@ -131,14 +131,17 @@ export interface ListingFilters {
   featured?: boolean;
 }
 
+// Supported import platforms come first; names MUST match platforms.ts
+// `source_country` values so contractor trips match scraped products.
 export const IMPORT_COUNTRIES = [
-  "China",
-  "Turkey",
   "France",
+  "United Kingdom",
+  "United Arab Emirates",
   "Germany",
+  "Turkey",
+  "China",
   "Italy",
   "Spain",
-  "UAE",
   "Saudi Arabia",
   "Morocco",
   "Tunisia",
@@ -146,7 +149,6 @@ export const IMPORT_COUNTRIES = [
   "Japan",
   "South Korea",
   "USA",
-  "UK",
   "Portugal",
   "Belgium",
   "Netherlands",
@@ -154,6 +156,36 @@ export const IMPORT_COUNTRIES = [
 ] as const;
 
 export type ImportCountry = (typeof IMPORT_COUNTRIES)[number];
+
+/** Flag emoji for a country name (handles both full names and short forms). */
+export const COUNTRY_FLAGS: Record<string, string> = {
+  France: "🇫🇷",
+  "United Kingdom": "🇬🇧",
+  UK: "🇬🇧",
+  "United Arab Emirates": "🇦🇪",
+  UAE: "🇦🇪",
+  Germany: "🇩🇪",
+  Turkey: "🇹🇷",
+  China: "🇨🇳",
+  Italy: "🇮🇹",
+  Spain: "🇪🇸",
+  "Saudi Arabia": "🇸🇦",
+  Morocco: "🇲🇦",
+  Tunisia: "🇹🇳",
+  Egypt: "🇪🇬",
+  Japan: "🇯🇵",
+  "South Korea": "🇰🇷",
+  USA: "🇺🇸",
+  Portugal: "🇵🇹",
+  Belgium: "🇧🇪",
+  Netherlands: "🇳🇱",
+  Algeria: "🇩🇿",
+  Qatar: "🇶🇦",
+};
+
+export function countryFlag(name?: string | null): string {
+  return (name && COUNTRY_FLAGS[name]) || "✈️";
+}
 
 export interface SellerApplication {
   id: string;

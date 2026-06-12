@@ -8,41 +8,11 @@ import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useAuthStore } from '@/src/hooks/useAuth';
 import { createTrip } from '@/src/hooks/useTrips';
-import { IMPORT_COUNTRIES } from '@/src/types';
+import { IMPORT_COUNTRIES, countryFlag } from '@/src/types';
+import { SelectModal } from '@/components/SelectModal';
 
-// Simple dropdown via Alert picker (native, no extra deps)
-function CountryPicker({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  const options = IMPORT_COUNTRIES.filter((c) => c.name !== 'Algeria');
-  const showPicker = () => {
-    Alert.alert(
-      'Select Country',
-      undefined,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        ...options.slice(0, 8).map((c) => ({
-          text: `${c.flag} ${c.name}`,
-          onPress: () => onChange(c.name),
-        })),
-      ]
-    );
-  };
-  return (
-    <TouchableOpacity style={styles.pickerBtn} onPress={showPicker} activeOpacity={0.8}>
-      <Text style={value ? styles.pickerValue : styles.pickerPlaceholder}>
-        {value
-          ? `${options.find((c) => c.name === value)?.flag ?? ''} ${value}`
-          : 'Select country…'}
-      </Text>
-      <Ionicons name="chevron-down" size={16} color="#9ca3af" />
-    </TouchableOpacity>
-  );
-}
+// Countries a contractor can travel from (exclude Algeria — that's home)
+const DESTINATION_COUNTRIES = IMPORT_COUNTRIES.filter((c) => c !== 'Algeria');
 
 export default function CreateTripScreen() {
   const router  = useRouter();
@@ -50,6 +20,7 @@ export default function CreateTripScreen() {
   const profile = useAuthStore((s) => s.profile);
 
   const [submitting, setSubmitting] = useState(false);
+  const [showCountry,    setShowCountry]    = useState(false);
   const [sourceCountry,  setSourceCountry]  = useState('');
   const [sourceCity,     setSourceCity]     = useState('');
   const [departureDate,  setDepartureDate]  = useState('');
@@ -130,7 +101,18 @@ export default function CreateTripScreen() {
 
         {/* Country */}
         <Text style={styles.label}>Destination Country *</Text>
-        <CountryPicker value={sourceCountry} onChange={setSourceCountry} />
+        <TouchableOpacity
+          style={styles.pickerBtn}
+          onPress={() => setShowCountry(true)}
+          activeOpacity={0.8}
+        >
+          <Text style={sourceCountry ? styles.pickerValue : styles.pickerPlaceholder}>
+            {sourceCountry
+              ? `${countryFlag(sourceCountry)}  ${sourceCountry}`
+              : 'Select country…'}
+          </Text>
+          <Ionicons name="chevron-down" size={16} color="#9ca3af" />
+        </TouchableOpacity>
 
         {/* City */}
         <Text style={styles.label}>City (optional)</Text>
@@ -214,6 +196,16 @@ export default function CreateTripScreen() {
             : <Text style={styles.greenBtnText}>Register Trip</Text>}
         </TouchableOpacity>
       </ScrollView>
+
+      <SelectModal
+        visible={showCountry}
+        title="Destination Country"
+        options={DESTINATION_COUNTRIES as unknown as string[]}
+        selected={sourceCountry}
+        onSelect={setSourceCountry}
+        onClose={() => setShowCountry(false)}
+        searchable
+      />
     </SafeAreaView>
   );
 }

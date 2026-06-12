@@ -9,7 +9,7 @@ import * as ImagePicker from 'expo-image-picker';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { supabase } from '@/src/lib/supabase';
 import { useAuthStore } from '@/src/hooks/useAuth';
-import { IMPORT_COUNTRIES, CONDITION_LABELS } from '@/src/types';
+import { IMPORT_COUNTRIES, CONDITION_LABELS, countryFlag } from '@/src/types';
 import type { TravelTrip, UsedItemCondition } from '@/src/types';
 import { formatPrice } from '@/src/lib/utils';
 
@@ -253,7 +253,7 @@ export default function PostAbroadItemScreen() {
           onPress={() =>
             PickerAlert(
               'Source Country',
-              IMPORT_COUNTRIES.filter((c) => c.name !== 'Algeria').map((c) => `${c.flag} ${c.name}`),
+              IMPORT_COUNTRIES.filter((c) => c !== 'Algeria').map((c) => `${countryFlag(c)} ${c}`),
               (v) => setSourceCountry(v.replace(/^[^\s]+\s/, ''))
             )
           }
@@ -261,7 +261,7 @@ export default function PostAbroadItemScreen() {
         >
           <Text style={sourceCountry ? styles.pickerValue : styles.pickerPlaceholder}>
             {sourceCountry
-              ? `${IMPORT_COUNTRIES.find((c) => c.name === sourceCountry)?.flag ?? ''} ${sourceCountry}`
+              ? `${countryFlag(sourceCountry)} ${sourceCountry}`
               : 'Select country…'}
           </Text>
           <Ionicons name="chevron-down" size={16} color="#9ca3af" />
