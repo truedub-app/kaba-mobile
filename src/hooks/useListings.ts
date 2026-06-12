@@ -34,6 +34,7 @@ export function useListings(filters: ListingFilters = {}) {
     if (f.max_price != null) q = q.lte('price', f.max_price);
     if (f.cities?.length) q = q.in('city', f.cities);
     if (f.featured) q = q.eq('is_featured', true);
+    if (f.available_now != null) q = q.eq('available_in_algeria', f.available_now);
 
     switch (f.sort) {
       case 'price_asc':

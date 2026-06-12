@@ -12,6 +12,7 @@ import {
   Alert,
 } from 'react-native';
 import { useLocalSearchParams, useNavigation } from 'expo-router';
+import { useHeaderHeight } from '@react-navigation/elements';
 import * as ImagePicker from 'expo-image-picker';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { MessageBubble } from '@/components/MessageBubble';
@@ -23,6 +24,7 @@ import { supabase } from '@/src/lib/supabase';
 export default function ChatScreen() {
   const { id: conversationId } = useLocalSearchParams<{ id: string }>();
   const navigation = useNavigation();
+  const headerHeight = useHeaderHeight();
   const session = useAuthStore((s) => s.session);
   const currentUserId = session?.user?.id ?? null;
 
@@ -126,7 +128,7 @@ export default function ChatScreen() {
     <KeyboardAvoidingView
       style={styles.root}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? headerHeight : 0}
     >
       {/* Listing context banner */}
       {conversation?.listing && (

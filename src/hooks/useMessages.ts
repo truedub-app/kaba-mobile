@@ -71,6 +71,16 @@ export function useChat(conversationId: string, currentUserId: string | null | u
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
 
+  // Zero this user's unread counter on the conversation — that counter is
+  // what the conversations list and tab-bar badge display.
+  const clearUnread = useCallback(() => {
+    if (!currentUserId) return;
+    supabase.from('conversations').update({ buyer_unread: 0 })
+      .eq('id', conversationId).eq('buyer_id', currentUserId).then(() => {});
+    supabase.from('conversations').update({ seller_unread: 0 })
+      .eq('id', conversationId).eq('seller_id', currentUserId).then(() => {});
+  }, [conversationId, currentUserId]);
+
   const load = useCallback(async () => {
     setLoading(true);
     const { data } = await supabase
@@ -91,8 +101,9 @@ export function useChat(conversationId: string, currentUserId: string | null | u
         .neq('sender_id', currentUserId)
         .is('read_at', null)
         .then(() => {});
+      clearUnread();
     }
-  }, [conversationId, currentUserId]);
+  }, [conversationId, currentUserId, clearUnread]);
 
   // Realtime subscription
   useEffect(() => {
@@ -124,6 +135,7 @@ export function useChat(conversationId: string, currentUserId: string | null | u
               .update({ read_at: new Date().toISOString() })
               .eq('id', payload.new.id)
               .then(() => {});
+            clearUnread(); // user is looking at the chat — keep counter at 0
           }
         }
       )
@@ -135,7 +147,7 @@ export function useChat(conversationId: string, currentUserId: string | null | u
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [conversationId, currentUserId, load]);
+  }, [conversationId, currentUserId, load, clearUnread]);
 
   const sendMessage = useCallback(
     async (content: string, imageUrl?: string): Promise<boolean> => {

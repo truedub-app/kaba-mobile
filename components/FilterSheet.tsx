@@ -117,6 +117,27 @@ export function FilterSheet({ visible, filters, onApply, onClose }: Props) {
             </View>
           </Section>
 
+          {/* Availability in Algeria */}
+          <Section title="التوفر | Availability">
+            <View style={styles.chips}>
+              <Chip
+                label="🇩🇿 Available in Algeria"
+                active={draft.available_now === true}
+                onPress={() => toggle('available_now', true)}
+              />
+              <Chip
+                label="✈️ Coming soon"
+                active={draft.available_now === false}
+                onPress={() =>
+                  setDraft((prev) => ({
+                    ...prev,
+                    available_now: prev.available_now === false ? undefined : false,
+                  }))
+                }
+              />
+            </View>
+          </Section>
+
           {/* Cities */}
           <Section title="City">
             <View style={styles.chips}>

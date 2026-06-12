@@ -132,6 +132,8 @@ export interface ListingFilters {
   condition?: ListingCondition;
   sort?: "newest" | "price_asc" | "price_desc" | "oldest";
   featured?: boolean;
+  /** true = only items in Algeria now; false = only incoming; undefined = all */
+  available_now?: boolean;
 }
 
 // Supported import platforms come first; names MUST match platforms.ts

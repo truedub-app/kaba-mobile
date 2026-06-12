@@ -270,6 +270,7 @@ export default function HomeScreen() {
         onChangeText={setSearch}
         onSubmit={() => { if (search.trim()) { goSearch(search); setSearch(''); } }}
         placeholder="ابحث عن منتج…  |  Search for a product…"
+        onFilterPress={() => setFilterVisible(true)}
       />
       <FlashList
         data={listings}

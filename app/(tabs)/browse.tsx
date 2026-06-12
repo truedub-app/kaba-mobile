@@ -66,6 +66,7 @@ export default function BrowseScreen() {
     (filters.cities?.length ?? 0) > 0 ||
     filters.min_price ||
     filters.max_price ||
+    filters.available_now != null ||
     searchQuery ||
     selectedCategory
   );
@@ -116,6 +117,24 @@ export default function BrowseScreen() {
               <Text style={styles.chipText}>{c} ✕</Text>
             </TouchableOpacity>
           ))}
+          {(filters.min_price != null || filters.max_price != null) && (
+            <TouchableOpacity style={styles.chip} onPress={() =>
+              setFilters((p) => ({ ...p, min_price: undefined, max_price: undefined }))
+            }>
+              <Text style={styles.chipText}>
+                {filters.min_price ?? 0} – {filters.max_price ?? '∞'} DA ✕
+              </Text>
+            </TouchableOpacity>
+          )}
+          {filters.available_now != null && (
+            <TouchableOpacity style={styles.chip} onPress={() =>
+              setFilters((p) => ({ ...p, available_now: undefined }))
+            }>
+              <Text style={styles.chipText}>
+                {filters.available_now ? '🇩🇿 Available now' : '✈️ Coming soon'} ✕
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       )}
 
@@ -140,6 +159,7 @@ export default function BrowseScreen() {
         onChangeText={setSearch}
         onSubmit={() => setSearchQuery(search)}
         placeholder="Search items, categories or locations..."
+        onFilterPress={() => setFilterVisible(true)}
       />
 
       {/* Listings */}
@@ -148,7 +168,6 @@ export default function BrowseScreen() {
         renderItem={renderListing}
         keyExtractor={(item) => item.id}
         numColumns={2}
-        estimatedItemSize={240}
         ListHeaderComponent={ListHeader}
         ListEmptyComponent={
           !loading ? (
