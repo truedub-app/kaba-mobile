@@ -73,7 +73,11 @@ export const useAuthStore = create<AuthStore>((set) => ({
     const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
 
     if (result.type === 'success') {
-      const { error: sessionError } = await supabase.auth.exchangeCodeForSession(result.url);
+      // exchangeCodeForSession expects the bare auth code, not the full URL —
+      // passing the URL makes Supabase fail with "no valid flow state found"
+      const code = result.url.match(/[?&]code=([^&#]+)/)?.[1];
+      if (!code) return 'Google sign-in failed (no auth code in redirect)';
+      const { error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
       return sessionError?.message ?? null;
     }
     if (result.type === 'cancel') return null;
