@@ -83,12 +83,15 @@ export function AppHeader({ leftSlot }: Props = {}) {
 
             {/* Items */}
             <View style={styles.menuItems}>
-              <TouchableOpacity
-                style={styles.menuItem}
-                onPress={() => { setMenuVisible(false); router.push('/(tabs)/profile'); }}
-              >
-                <Text style={styles.menuItemText}>My Profile</Text>
-              </TouchableOpacity>
+              {/* Sellers manage their profile from the Seller Dashboard */}
+              {profile?.role !== 'seller' && profile?.role !== 'admin' && (
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => { setMenuVisible(false); router.push('/(tabs)/profile'); }}
+                >
+                  <Text style={styles.menuItemText}>My Profile</Text>
+                </TouchableOpacity>
+              )}
               <TouchableOpacity
                 style={styles.menuItem}
                 onPress={() => { setMenuVisible(false); router.push('/(tabs)/favorites'); }}

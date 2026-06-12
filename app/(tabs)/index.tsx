@@ -141,7 +141,7 @@ export default function HomeScreen() {
                   key={trip.id}
                   style={styles.travelerCard}
                   activeOpacity={0.85}
-                  onPress={() => goSearch()}
+                  onPress={() => c ? router.push(`/user/${c.id}` as any) : goSearch()}
                 >
                   <View style={styles.travelerAvatarWrap}>
                     {avatarUrl ? (
