@@ -8,6 +8,8 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { supabase } from '@/src/lib/supabase';
 import { useImportSearch, type SearchProduct } from '@/src/hooks/useImportSearch';
+import { useAbroadFavorites } from '@/src/hooks/useAbroadFavorites';
+import { useAuthStore } from '@/src/hooks/useAuth';
 import { ListingCard } from '@/components/ListingCard';
 import { formatPrice } from '@/src/lib/utils';
 import type { Listing } from '@/src/types';
@@ -51,7 +53,9 @@ export const COUNTRY_PLATFORMS = [
 
 const LISTING_SELECT = `*, seller:profiles!listings_seller_id_fkey(id, full_name, avatar_url, avg_rating, total_reviews, is_verified), category:categories(id, name, slug)`;
 
-function AbroadCard({ product, onPress }: { product: SearchProduct; onPress: () => void }) {
+function AbroadCard({ product, onPress, isFav, onToggleFav }: {
+  product: SearchProduct; onPress: () => void; isFav: boolean; onToggleFav: () => void;
+}) {
   return (
     <View style={[styles.card, { width: CARD_W }]}>
       <TouchableOpacity onPress={onPress} activeOpacity={0.88}>
@@ -64,6 +68,14 @@ function AbroadCard({ product, onPress }: { product: SearchProduct; onPress: () 
           <View style={styles.flagBadge}>
             <Text style={{ fontSize: 12 }}>{product.platform_flag}</Text>
           </View>
+          <TouchableOpacity
+            style={styles.heartBtn}
+            onPress={onToggleFav}
+            hitSlop={8}
+            activeOpacity={0.8}
+          >
+            <Ionicons name={isFav ? 'heart' : 'heart-outline'} size={18} color={isFav ? '#ef4444' : '#6b7280'} />
+          </TouchableOpacity>
         </View>
         <View style={styles.cardBody}>
           <Text style={styles.priceText}>{formatPrice(product.price_dzd)}</Text>
@@ -95,6 +107,11 @@ export default function UnifiedSearchScreen() {
 
   // Abroad results
   const { products: abroadResults, loading: abroadLoading, error: abroadError, search: searchAbroad } = useImportSearch();
+
+  // Saved abroad products
+  const session = useAuthStore((s) => s.session);
+  const { favUrls, toggle: toggleFav, refresh: refreshFavs } = useAbroadFavorites(session?.user?.id);
+  useEffect(() => { refreshFavs(); }, [refreshFavs]);
 
   const runSearch = async (q: string, plat: string) => {
     const term = q.trim();
@@ -254,7 +271,13 @@ export default function UnifiedSearchScreen() {
               ) : (
                 <View style={styles.grid}>
                   {abroadResults.map((p) => (
-                    <AbroadCard key={p.id} product={p} onPress={() => openAbroadProduct(p)} />
+                    <AbroadCard
+                      key={p.id}
+                      product={p}
+                      onPress={() => openAbroadProduct(p)}
+                      isFav={favUrls.has(p.product_url)}
+                      onToggleFav={() => toggleFav(p)}
+                    />
                   ))}
                 </View>
               )}
@@ -319,6 +342,12 @@ const styles = StyleSheet.create({
   flagBadge: {
     position: 'absolute', top: 6, left: 6,
     backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 999, padding: 3,
+  },
+  heartBtn: {
+    position: 'absolute', top: 6, right: 6,
+    width: 30, height: 30, borderRadius: 15,
+    backgroundColor: 'rgba(255,255,255,0.95)', borderWidth: 1, borderColor: '#f3f4f6',
+    alignItems: 'center', justifyContent: 'center',
   },
   cardBody: { padding: 9 },
   priceText: { fontSize: 14, fontWeight: '900', color: '#15803d' },
