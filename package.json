@@ -14,7 +14,6 @@
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
     "@react-native-community/datetimepicker": "9.1.0",
-    "@react-navigation/elements": "^2.9.23",
     "@shopify/flash-list": "2.0.2",
     "@supabase/supabase-js": "^2.50.0",
     "expo": "~56.0.11",

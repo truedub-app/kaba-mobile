@@ -12,7 +12,7 @@ import {
   Alert,
 } from 'react-native';
 import { useLocalSearchParams, useNavigation } from 'expo-router';
-import { useHeaderHeight } from '@react-navigation/elements';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { MessageBubble } from '@/components/MessageBubble';
@@ -24,7 +24,9 @@ import { supabase } from '@/src/lib/supabase';
 export default function ChatScreen() {
   const { id: conversationId } = useLocalSearchParams<{ id: string }>();
   const navigation = useNavigation();
-  const headerHeight = useHeaderHeight();
+  const insets = useSafeAreaInsets();
+  // Native stack header height = top safe-area inset + 44pt standard nav bar
+  const headerHeight = insets.top + 44;
   const session = useAuthStore((s) => s.session);
   const currentUserId = session?.user?.id ?? null;
 
