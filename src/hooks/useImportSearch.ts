@@ -13,6 +13,14 @@ export interface SearchProduct {
   platform: string;
   source_country: string;
   platform_flag: string;
+  rating?: number;
+  reviews_count?: number;
+}
+
+export interface FullProduct extends SearchProduct {
+  images: string[];
+  description: string;
+  variants?: { name: string; values: string[] }[];
 }
 
 export function useImportSearch() {
@@ -45,7 +53,7 @@ export function useImportSearch() {
     const res  = await fetch(`${WEB_API}/api/product?url=${encodeURIComponent(productUrl)}`);
     const json = await res.json();
     if (!res.ok) throw new Error(json.error ?? 'Failed to fetch product');
-    return json.product as SearchProduct & { images: string[]; description: string };
+    return json.product as FullProduct;
   };
 
   return { products, loading, error, searched, search, fetchProduct };

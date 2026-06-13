@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  ActivityIndicator, Alert, Image,
+  ActivityIndicator, Alert, Image, Linking,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -38,6 +38,7 @@ interface ContractorOption {
   upfront: number;
   cod: number;
   deposit: number;
+  fee: number;
 }
 
 export default function AbroadProductScreen() {
@@ -48,14 +49,29 @@ export default function AbroadProductScreen() {
     product_url: string; product_title: string; product_image: string;
     product_platform: string; price_original: string; currency: string;
     price_dzd: string; source_country: string; flag: string;
+    rating: string; reviews_count: string;
   }>();
 
   const priceDzd = parseFloat(params.price_dzd ?? '0');
+  const rating   = parseFloat(params.rating ?? '0');
+  const reviews  = parseInt(params.reviews_count ?? '0', 10);
 
+  const { fetchProduct } = useImportSearch();
   const [options, setOptions]   = useState<ContractorOption[]>([]);
   const [loading, setLoading]   = useState(true);
   const [selected, setSelected] = useState<string | null>(null);
   const [sort, setSort]         = useState<'price' | 'speed'>('price');
+  const [variants, setVariants] = useState<{ name: string; values: string[] }[]>([]);
+  const [variant, setVariant]   = useState<Record<string, string>>({});
+
+  // Fetch variant options in the background (non-blocking)
+  useEffect(() => {
+    if (!params.product_url) return;
+    fetchProduct(params.product_url)
+      .then((p) => { if (p.variants?.length) setVariants(p.variants); })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.product_url]);
 
   useEffect(() => {
     (async () => {
@@ -63,7 +79,7 @@ export default function AbroadProductScreen() {
       const { data } = await supabase
         .from('travel_trips')
         .select(`*, contractor:profiles!travel_trips_user_id_fkey(
-          id, full_name, username, avatar_url, avg_rating, total_reviews, is_verified, commission_rate
+          id, full_name, username, avatar_url, avg_rating, total_reviews, is_verified, commission_rate, whatsapp_number
         )`)
         .eq('source_country', params.source_country ?? '')
         .eq('status', 'active')
@@ -139,12 +155,50 @@ export default function AbroadProductScreen() {
 
         <View style={styles.content}>
           <Text style={styles.title}>{params.product_title}</Text>
+
+          {rating > 0 && (
+            <View style={styles.ratingRow}>
+              {[0, 1, 2, 3, 4].map((i) => (
+                <Ionicons
+                  key={i}
+                  name={i < Math.round(rating) ? 'star' : 'star-outline'}
+                  size={14}
+                  color="#f59e0b"
+                />
+              ))}
+              <Text style={styles.ratingNum}>{rating.toFixed(1)}</Text>
+              {reviews > 0 && <Text style={styles.ratingCount}>· {reviews.toLocaleString()} reviews</Text>}
+            </View>
+          )}
+
           <Text style={styles.priceDzd}>{formatPrice(priceDzd)}</Text>
           <Text style={styles.priceOrig}>
             {parseFloat(params.price_original ?? '0').toLocaleString('fr-FR', {
               style: 'currency', currency: params.currency ?? 'EUR',
             })} · {params.source_country}
           </Text>
+
+          {/* Variants */}
+          {variants.map((group) => (
+            <View key={group.name} style={{ marginTop: 12 }}>
+              <Text style={styles.variantLabel}>{group.name}</Text>
+              <View style={styles.variantRow}>
+                {group.values.map((val) => {
+                  const active = variant[group.name] === val;
+                  return (
+                    <TouchableOpacity
+                      key={val}
+                      style={[styles.variantChip, active && styles.variantChipActive]}
+                      onPress={() => setVariant((v) => ({ ...v, [group.name]: val }))}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[styles.variantChipText, active && styles.variantChipTextActive]}>{val}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          ))}
 
           {/* How it works */}
           <View style={styles.howBox}>
@@ -238,6 +292,19 @@ export default function AbroadProductScreen() {
             <Text style={styles.ctaTotal}>{formatPrice(selectedOpt.upfront)} upfront</Text>
             <Text style={styles.ctaCod}>+ {formatPrice(selectedOpt.cod)} on delivery</Text>
           </View>
+          {(selectedOpt.trip.contractor as any)?.whatsapp_number && (
+            <TouchableOpacity
+              style={styles.ctaContactBtn}
+              activeOpacity={0.85}
+              onPress={() => {
+                const num = (selectedOpt.trip.contractor as any).whatsapp_number.replace(/\D/g, '');
+                const text = encodeURIComponent(`Hi, I'm interested in ordering "${params.product_title}" through KABA before I place the order.`);
+                Linking.openURL(`https://wa.me/${num}?text=${text}`);
+              }}
+            >
+              <Ionicons name="logo-whatsapp" size={18} color="#15803d" />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity style={styles.ctaBtn} onPress={handleOrder} activeOpacity={0.88}>
             <Text style={styles.ctaBtnText}>Order →</Text>
           </TouchableOpacity>
@@ -271,6 +338,16 @@ const styles = StyleSheet.create({
   title: { fontSize: 18, fontWeight: '800', color: '#111827', lineHeight: 24, marginBottom: 6 },
   priceDzd: { fontSize: 22, fontWeight: '900', color: '#15803d' },
   priceOrig: { fontSize: 12, color: '#9ca3af', marginBottom: 14 },
+
+  ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 6, marginBottom: 2 },
+  ratingNum: { fontSize: 13, fontWeight: '800', color: '#111827', marginLeft: 4 },
+  ratingCount: { fontSize: 12, color: '#9ca3af', marginLeft: 4 },
+  variantLabel: { fontSize: 12, fontWeight: '700', color: '#374151', marginBottom: 6, textTransform: 'capitalize' },
+  variantRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  variantChip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10, borderWidth: 1, borderColor: '#d1d5db', backgroundColor: '#fff' },
+  variantChipActive: { borderColor: '#15803d', backgroundColor: '#f0fdf4' },
+  variantChipText: { fontSize: 12.5, color: '#374151', fontWeight: '600' },
+  variantChipTextActive: { color: '#15803d', fontWeight: '800' },
 
   howBox: { backgroundColor: '#f0fdf4', borderRadius: 12, borderWidth: 1, borderColor: '#bbf7d0', padding: 12, marginBottom: 16 },
   howTitle: { fontSize: 13, fontWeight: '700', color: '#14532d', marginBottom: 8 },
@@ -313,4 +390,8 @@ const styles = StyleSheet.create({
   ctaCod: { fontSize: 11, color: '#9ca3af' },
   ctaBtn: { backgroundColor: '#15803d', borderRadius: 12, paddingHorizontal: 24, paddingVertical: 13 },
   ctaBtnText: { color: '#fff', fontWeight: '800', fontSize: 15 },
+  ctaContactBtn: {
+    width: 44, height: 44, borderRadius: 12, borderWidth: 1.5, borderColor: '#15803d',
+    alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff',
+  },
 });

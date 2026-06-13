@@ -83,6 +83,15 @@ function AbroadCard({ product, onPress, isFav, onToggleFav }: {
             {product.price_original.toLocaleString('fr-FR', { style: 'currency', currency: product.currency })}
           </Text>
           <Text style={styles.titleText} numberOfLines={2}>{product.title}</Text>
+          {product.rating ? (
+            <View style={styles.ratingRow}>
+              <Ionicons name="star" size={11} color="#f59e0b" />
+              <Text style={styles.ratingText}>
+                {product.rating.toFixed(1)}
+                {product.reviews_count ? ` (${product.reviews_count})` : ''}
+              </Text>
+            </View>
+          ) : null}
         </View>
       </TouchableOpacity>
       <TouchableOpacity style={styles.requestBtn} onPress={onPress} activeOpacity={0.85}>
@@ -162,6 +171,8 @@ export default function UnifiedSearchScreen() {
         price_dzd:        String(product.price_dzd),
         source_country:   product.source_country,
         flag:             product.platform_flag,
+        rating:           product.rating ? String(product.rating) : '',
+        reviews_count:    product.reviews_count ? String(product.reviews_count) : '',
       },
     });
   };
@@ -353,6 +364,8 @@ const styles = StyleSheet.create({
   priceText: { fontSize: 14, fontWeight: '900', color: '#15803d' },
   origPrice: { fontSize: 10, color: '#9ca3af', marginBottom: 2 },
   titleText: { fontSize: 11.5, color: '#374151', lineHeight: 15, fontWeight: '500' },
+  ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 4 },
+  ratingText: { fontSize: 11, color: '#6b7280', fontWeight: '600' },
 
   requestBtn: {
     backgroundColor: '#166534', marginHorizontal: 9, marginBottom: 9,
