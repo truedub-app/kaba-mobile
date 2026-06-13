@@ -109,8 +109,10 @@ export default function AbroadOrderScreen() {
         return;
       }
 
-      // Manual: upload BaridiMob receipt (RN uploads ArrayBuffer, not Blob)
-      const path = `${uid}/${Date.now()}_receipt.jpg`;
+      // Manual: upload BaridiMob receipt (RN uploads ArrayBuffer, not Blob).
+      // Path MUST be <prefix>/<uid>/<file> — the documents bucket RLS policy
+      // checks the 2nd path segment equals auth.uid().
+      const path = `receipts/${uid}/${Date.now()}_receipt.jpg`;
       const resp = await fetch(receipt!);
       if (!resp.ok) throw new Error(`Failed to read receipt: ${resp.status}`);
       const arrayBuffer = await resp.arrayBuffer();

@@ -17,6 +17,7 @@ import type { Listing } from '@/src/types';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface Stats {
+  orderRequests: number;
   totalViews: number;
   totalSaves: number;
   conversations: number;
@@ -24,6 +25,7 @@ interface Stats {
 }
 
 const STAT_CARDS = [
+  { key: 'orderRequests',  label: 'Order Requests', icon: 'bag-handle-outline', color: '#15803d', bg: '#f0fdf4', href: '/contractor/orders' as const },
   { key: 'totalViews',     label: 'Total Views',    icon: 'eye-outline',        color: '#3b82f6', bg: '#eff6ff' },
   { key: 'totalSaves',     label: 'Total Saves',    icon: 'heart-outline',      color: '#ef4444', bg: '#fef2f2' },
   { key: 'conversations',  label: 'Conversations',  icon: 'chatbubble-outline', color: '#15803d', bg: '#f0fdf4' },
@@ -42,7 +44,7 @@ export default function SellerDashboardScreen() {
   const session = useAuthStore((s) => s.session);
   const profile = useAuthStore((s) => s.profile);
 
-  const [stats, setStats] = useState<Stats>({ totalViews: 0, totalSaves: 0, conversations: 0, activeListings: 0 });
+  const [stats, setStats] = useState<Stats>({ orderRequests: 0, totalViews: 0, totalSaves: 0, conversations: 0, activeListings: 0 });
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -80,7 +82,14 @@ export default function SellerDashboardScreen() {
       .select('id', { count: 'exact', head: true })
       .eq('seller_id', userId);
 
-    setStats({ totalViews, totalSaves, conversations: convCount ?? 0, activeListings });
+    // New import order requests awaiting the seller's action (deposit paid)
+    const { count: reqCount } = await supabase
+      .from('import_requests')
+      .select('id', { count: 'exact', head: true })
+      .eq('contractor_id', userId)
+      .eq('status', 'deposit_held');
+
+    setStats({ orderRequests: reqCount ?? 0, totalViews, totalSaves, conversations: convCount ?? 0, activeListings });
     setListings(listingRows);
     setLoading(false);
   }, [session?.user?.id]);
@@ -185,15 +194,36 @@ export default function SellerDashboardScreen() {
           <ActivityIndicator color="#15803d" style={{ marginVertical: 32 }} />
         ) : (
           <View style={styles.statsGrid}>
-            {STAT_CARDS.map((card) => (
-              <View key={card.key} style={styles.statCard}>
-                <View style={[styles.statIconWrap, { backgroundColor: card.bg }]}>
-                  <Ionicons name={card.icon as any} size={22} color={card.color} />
-                </View>
-                <Text style={styles.statNum}>{stats[card.key]}</Text>
-                <Text style={styles.statLabel}>{card.label}</Text>
-              </View>
-            ))}
+            {STAT_CARDS.map((card) => {
+              const href = 'href' in card ? card.href : undefined;
+              const count = stats[card.key];
+              const inner = (
+                <>
+                  <View style={[styles.statIconWrap, { backgroundColor: card.bg }]}>
+                    <Ionicons name={card.icon as any} size={22} color={card.color} />
+                    {href && count > 0 && (
+                      <View style={styles.statBadge}>
+                        <Text style={styles.statBadgeText}>{count > 9 ? '9+' : count}</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={styles.statNum}>{count}</Text>
+                  <Text style={styles.statLabel}>{card.label}</Text>
+                </>
+              );
+              return href ? (
+                <TouchableOpacity
+                  key={card.key}
+                  style={[styles.statCard, count > 0 && styles.statCardActive]}
+                  activeOpacity={0.85}
+                  onPress={() => router.push(href)}
+                >
+                  {inner}
+                </TouchableOpacity>
+              ) : (
+                <View key={card.key} style={styles.statCard}>{inner}</View>
+              );
+            })}
           </View>
         )}
 
@@ -354,10 +384,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff', borderRadius: 14,
     borderWidth: 1, borderColor: '#e5e7eb', padding: 16, gap: 6,
   },
+  statCardActive: { borderColor: '#15803d', backgroundColor: '#f0fdf4' },
   statIconWrap: {
     width: 40, height: 40, borderRadius: 10,
     alignItems: 'center', justifyContent: 'center', marginBottom: 4,
   },
+  statBadge: {
+    position: 'absolute', top: -5, right: -5,
+    minWidth: 18, height: 18, borderRadius: 9, backgroundColor: '#ef4444',
+    alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4,
+  },
+  statBadgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
   statNum: { fontSize: 24, fontWeight: '800', color: '#111827' },
   statLabel: { fontSize: 12, color: '#6b7280' },
 
