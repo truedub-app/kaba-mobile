@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
-  ScrollView, ActivityIndicator, Image, Dimensions,
+  ScrollView, ActivityIndicator, Image, Dimensions, Animated, Easing,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -11,6 +11,32 @@ import { useImportSearch, type SearchProduct } from '@/src/hooks/useImportSearch
 import { ListingCard } from '@/components/ListingCard';
 import { formatPrice } from '@/src/lib/utils';
 import type { Listing } from '@/src/types';
+
+/** Indeterminate loading bar with bilingual reassurance text. */
+function AbroadLoadingBar() {
+  const x = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.timing(x, { toValue: 1, duration: 1100, easing: Easing.inOut(Easing.ease), useNativeDriver: true })
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [x]);
+  const translateX = x.interpolate({ inputRange: [0, 1], outputRange: [-90, 320] });
+  return (
+    <View style={styles.loadCard}>
+      <View style={styles.loadHeader}>
+        <ActivityIndicator size="small" color="#15803d" />
+        <Text style={styles.loadTitle} numberOfLines={2}>
+          نبحث لك عن أفضل المنتجات… | KABA is finding the best products for you
+        </Text>
+      </View>
+      <View style={styles.loadTrack}>
+        <Animated.View style={[styles.loadFill, { transform: [{ translateX }] }]} />
+      </View>
+    </View>
+  );
+}
 
 const { width: W } = Dimensions.get('window');
 const CARD_W = (W - 32 - 10) / 2;
@@ -215,10 +241,7 @@ export default function UnifiedSearchScreen() {
               </View>
 
               {abroadLoading ? (
-                <View style={{ paddingVertical: 24, alignItems: 'center', gap: 8 }}>
-                  <ActivityIndicator color="#15803d" />
-                  <Text style={styles.loadingText}>Searching abroad…</Text>
-                </View>
+                <AbroadLoadingBar />
               ) : abroadError ? (
                 <View style={styles.errorBox}>
                   <Text style={styles.errorText}>{abroadError}</Text>
@@ -309,6 +332,14 @@ const styles = StyleSheet.create({
   requestBtnText: { color: '#fff', fontWeight: '800', fontSize: 12.5 },
 
   loadingText: { fontSize: 12, color: '#9ca3af' },
+  loadCard: {
+    backgroundColor: '#f0fdf4', borderRadius: 14, borderWidth: 1, borderColor: '#bbf7d0',
+    padding: 14, marginVertical: 4,
+  },
+  loadHeader: { flexDirection: 'row', alignItems: 'center', gap: 9, marginBottom: 10 },
+  loadTitle: { flex: 1, fontSize: 12.5, fontWeight: '700', color: '#166534', lineHeight: 17 },
+  loadTrack: { height: 6, borderRadius: 999, backgroundColor: '#dcfce7', overflow: 'hidden' },
+  loadFill: { width: 80, height: 6, borderRadius: 999, backgroundColor: '#15803d' },
   errorBox: { alignItems: 'center', paddingVertical: 18, gap: 10 },
   errorText: { fontSize: 13, color: '#ef4444', textAlign: 'center' },
   retryBtn: {
