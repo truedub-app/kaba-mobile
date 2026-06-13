@@ -6,10 +6,15 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import * as WebBrowser from 'expo-web-browser';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { supabase } from '@/src/lib/supabase';
 import { useAuthStore } from '@/src/hooks/useAuth';
 import { formatPrice } from '@/src/lib/utils';
+
+const WEB_API = process.env.EXPO_PUBLIC_KABA_API_URL ?? 'https://dz-kaba.com';
+
+type PayMethod = 'chargily' | 'manual';
 
 export default function AbroadOrderScreen() {
   const router  = useRouter();
@@ -28,6 +33,7 @@ export default function AbroadOrderScreen() {
   const buyerFee   = upfrontDzd - depositDzd;
 
   const [receipt,    setReceipt]    = useState<string | null>(null); // local URI
+  const [payMethod,  setPayMethod]  = useState<PayMethod>('chargily');
   const [submitting, setSubmitting] = useState(false);
 
   const pickReceipt = async () => {
@@ -37,53 +43,84 @@ export default function AbroadOrderScreen() {
     if (!result.canceled) setReceipt(result.assets[0].uri);
   };
 
+  // Insert the order row (no receipt for Chargily; receipt URL for manual)
+  const createOrder = async (uid: string, receiptUrl: string | null) => {
+    const priceOrig = parseFloat(params.price_original ?? '0');
+    const priceDzd  = parseFloat(params.price_dzd ?? '0');
+    const { data, error } = await supabase
+      .from('import_requests')
+      .insert({
+        buyer_id:               uid,
+        contractor_id:          params.contractor_id,
+        trip_id:                params.trip_id,
+        product_title:          params.product_title,
+        product_url:            params.product_url,
+        product_image:          params.product_image,
+        product_platform:       params.product_platform,
+        product_price_original: priceOrig,
+        product_currency:       params.currency ?? 'EUR',
+        platform_rate_used:     priceOrig > 0 ? priceDzd / priceOrig : 240,
+        contractor_total_dzd:   totalDzd,
+        deposit_dzd:            depositDzd,
+        buyer_fee_dzd:          buyerFee,
+        seller_fee_dzd:         Math.round(totalDzd * 0.05),
+        upfront_dzd:            upfrontDzd,
+        cod_dzd:                codDzd,
+        receipt_url:            receiptUrl,
+        status:                 'awaiting_verification',
+      })
+      .select('id')
+      .single();
+    if (error) throw new Error(error.message);
+    return data.id as string;
+  };
+
   const handleSubmit = async () => {
     if (!session?.user) return;
-    if (!receipt) { Alert.alert('Missing', 'Please upload your BaridiMob receipt.'); return; }
+    if (payMethod === 'manual' && !receipt) {
+      Alert.alert('Missing', 'Please upload your BaridiMob receipt.');
+      return;
+    }
 
     setSubmitting(true);
     try {
-      // Upload receipt
-      const uid  = session.user.id;
-      const ext  = receipt.split('.').pop() ?? 'jpg';
-      const path = `${uid}/${Date.now()}_receipt.${ext}`;
-      const blob = await (await fetch(receipt)).blob();
+      const uid = session.user.id;
+
+      if (payMethod === 'chargily') {
+        // 1. Create order (no receipt — automatic payment)
+        const orderId = await createOrder(uid, null);
+        // 2. Ask the web API to open a Chargily checkout for the deposit
+        const res = await fetch(`${WEB_API}/api/payments/chargily/import-checkout`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            import_request_id: orderId,
+            return_url: `${WEB_API}/orders/${orderId}?paid=1`,
+          }),
+        });
+        const json = await res.json();
+        if (!res.ok || !json.url) throw new Error(json.error || 'Could not start payment');
+        // 3. Open the hosted Chargily payment page, then land on order tracking
+        await WebBrowser.openBrowserAsync(json.url);
+        router.replace('/orders');
+        return;
+      }
+
+      // Manual: upload BaridiMob receipt (RN uploads ArrayBuffer, not Blob)
+      const path = `${uid}/${Date.now()}_receipt.jpg`;
+      const resp = await fetch(receipt!);
+      if (!resp.ok) throw new Error(`Failed to read receipt: ${resp.status}`);
+      const arrayBuffer = await resp.arrayBuffer();
       const { error: uploadErr } = await supabase.storage
         .from('documents')
-        .upload(path, blob, { contentType: `image/${ext}`, upsert: false });
+        .upload(path, arrayBuffer, { contentType: 'image/jpeg', upsert: false });
       if (uploadErr) throw new Error(uploadErr.message);
-
       const { data: urlData } = supabase.storage.from('documents').getPublicUrl(path);
-      const priceOrig = parseFloat(params.price_original ?? '0');
-      const priceDzd  = parseFloat(params.price_dzd ?? '0');
 
-      const { data, error: insertErr } = await supabase
-        .from('import_requests')
-        .insert({
-          buyer_id:               uid,
-          contractor_id:          params.contractor_id,
-          trip_id:                params.trip_id,
-          product_title:          params.product_title,
-          product_url:            params.product_url,
-          product_image:          params.product_image,
-          product_platform:       params.product_platform,
-          product_price_original: priceOrig,
-          product_currency:       params.currency ?? 'EUR',
-          platform_rate_used:     priceOrig > 0 ? priceDzd / priceOrig : 240,
-          contractor_total_dzd:   totalDzd,
-          deposit_dzd:            depositDzd,
-          buyer_fee_dzd:          buyerFee,
-          seller_fee_dzd:         Math.round(totalDzd * 0.05),
-          upfront_dzd:            upfrontDzd,
-          cod_dzd:                codDzd,
-          receipt_url:            urlData.publicUrl,
-          status:                 'awaiting_verification',
-        })
-        .select('id')
-        .single();
-
-      if (insertErr) throw new Error(insertErr.message);
-
+      await createOrder(uid, urlData.publicUrl);
       Alert.alert(
         'Order Placed! ✅',
         'Your receipt is being verified by the KABA team. You will be notified once confirmed.',
@@ -131,38 +168,73 @@ export default function AbroadOrderScreen() {
           </View>
         </View>
 
-        {/* BaridiMob instructions */}
-        <View style={styles.instructionBox}>
-          <Text style={styles.instructionTitle}>Payment Instructions</Text>
-          <Text style={styles.instructionText}>
-            Transfer <Text style={{ fontWeight: '800' }}>{formatPrice(upfrontDzd)}</Text> to KABA's BaridiMob account{'\n'}
-            <Text style={{ fontWeight: '700' }}>RIP: 007 99999 001X</Text>{'\n'}
-            Include your full name in the description.
-          </Text>
+        {/* Payment method selector */}
+        <Text style={styles.label}>Payment Method</Text>
+        <View style={styles.payRow}>
+          <TouchableOpacity
+            style={[styles.payCard, payMethod === 'chargily' && styles.payCardActive]}
+            onPress={() => setPayMethod('chargily')}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.payEmoji}>💳</Text>
+            <Text style={styles.payTitle}>Card / Edahabia</Text>
+            <Text style={styles.paySub}>Pay instantly</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.payCard, payMethod === 'manual' && styles.payCardActive]}
+            onPress={() => setPayMethod('manual')}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.payEmoji}>📄</Text>
+            <Text style={styles.payTitle}>BaridiMob</Text>
+            <Text style={styles.paySub}>Transfer + receipt</Text>
+          </TouchableOpacity>
         </View>
 
-        {/* Receipt upload */}
-        <Text style={styles.label}>BaridiMob Receipt <Text style={{ color: '#ef4444' }}>*</Text></Text>
-        {receipt ? (
-          <View style={styles.receiptPreview}>
-            <Image source={{ uri: receipt }} style={styles.receiptImg} resizeMode="contain" />
-            <TouchableOpacity style={styles.removeReceipt} onPress={() => setReceipt(null)}>
-              <Ionicons name="close-circle" size={22} color="#ef4444" />
-            </TouchableOpacity>
+        {payMethod === 'chargily' ? (
+          <View style={styles.instructionBox}>
+            <Text style={styles.instructionText}>
+              You'll be redirected to Chargily to pay{' '}
+              <Text style={{ fontWeight: '800' }}>{formatPrice(upfrontDzd)}</Text> securely via
+              CIB or Edahabia. Your order is confirmed automatically once payment succeeds.
+            </Text>
           </View>
         ) : (
-          <TouchableOpacity style={styles.uploadBox} onPress={pickReceipt} activeOpacity={0.8}>
-            <Ionicons name="cloud-upload-outline" size={28} color="#9ca3af" />
-            <Text style={styles.uploadText}>Tap to upload receipt screenshot</Text>
-            <Text style={styles.uploadHint}>JPG or PNG</Text>
-          </TouchableOpacity>
+          <>
+            {/* BaridiMob instructions */}
+            <View style={styles.instructionBox}>
+              <Text style={styles.instructionTitle}>Payment Instructions</Text>
+              <Text style={styles.instructionText}>
+                Transfer <Text style={{ fontWeight: '800' }}>{formatPrice(upfrontDzd)}</Text> to KABA's BaridiMob account{'\n'}
+                <Text style={{ fontWeight: '700' }}>RIP: 007 99999 001X</Text>{'\n'}
+                Include your full name in the description.
+              </Text>
+            </View>
+
+            {/* Receipt upload */}
+            <Text style={styles.label}>BaridiMob Receipt <Text style={{ color: '#ef4444' }}>*</Text></Text>
+            {receipt ? (
+              <View style={styles.receiptPreview}>
+                <Image source={{ uri: receipt }} style={styles.receiptImg} resizeMode="contain" />
+                <TouchableOpacity style={styles.removeReceipt} onPress={() => setReceipt(null)}>
+                  <Ionicons name="close-circle" size={22} color="#ef4444" />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity style={styles.uploadBox} onPress={pickReceipt} activeOpacity={0.8}>
+                <Ionicons name="cloud-upload-outline" size={28} color="#9ca3af" />
+                <Text style={styles.uploadText}>Tap to upload receipt screenshot</Text>
+                <Text style={styles.uploadHint}>JPG or PNG</Text>
+              </TouchableOpacity>
+            )}
+          </>
         )}
 
         {/* Submit */}
         <TouchableOpacity
-          style={[styles.submitBtn, (!receipt || submitting) && { opacity: 0.6 }]}
+          style={[styles.submitBtn, ((payMethod === 'manual' && !receipt) || submitting) && { opacity: 0.6 }]}
           onPress={handleSubmit}
-          disabled={!receipt || submitting}
+          disabled={(payMethod === 'manual' && !receipt) || submitting}
           activeOpacity={0.85}
         >
           {submitting ? (
@@ -170,7 +242,11 @@ export default function AbroadOrderScreen() {
           ) : (
             <>
               <Ionicons name="checkmark-circle-outline" size={20} color="#fff" />
-              <Text style={styles.submitText}>Place Order · {formatPrice(upfrontDzd)} upfront</Text>
+              <Text style={styles.submitText}>
+                {payMethod === 'chargily'
+                  ? `Pay ${formatPrice(upfrontDzd)} now`
+                  : `Place Order · ${formatPrice(upfrontDzd)} upfront`}
+              </Text>
             </>
           )}
         </TouchableOpacity>
@@ -212,6 +288,16 @@ const styles = StyleSheet.create({
   divider: { height: 1, backgroundColor: '#e5e7eb', marginVertical: 8 },
   codBox: { backgroundColor: '#fffbeb', borderRadius: 10, padding: 10, marginTop: 8 },
   codNote: { fontSize: 10, color: '#a16207', marginTop: 2 },
+
+  payRow: { flexDirection: 'row', gap: 10, marginBottom: 14 },
+  payCard: {
+    flex: 1, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 14,
+    padding: 12, backgroundColor: '#fff',
+  },
+  payCardActive: { borderColor: '#15803d', backgroundColor: '#f0fdf4' },
+  payEmoji: { fontSize: 20, marginBottom: 4 },
+  payTitle: { fontSize: 13.5, fontWeight: '800', color: '#111827' },
+  paySub:   { fontSize: 11, color: '#6b7280', marginTop: 1 },
 
   instructionBox: { backgroundColor: '#f0fdf4', borderRadius: 14, borderWidth: 1, borderColor: '#bbf7d0', padding: 14, marginBottom: 14 },
   instructionTitle: { fontSize: 13, fontWeight: '700', color: '#14532d', marginBottom: 6 },
