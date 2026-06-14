@@ -275,6 +275,7 @@ export interface ImportRequest {
   contractor_id: string;
   trip_id: string | null;
   order_type: 'import' | 'local';
+  payment_plan: 'deposit' | 'full';
   listing_id: string | null;
   courier: string | null;
   tracking_number: string | null;

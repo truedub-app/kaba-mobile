@@ -122,6 +122,7 @@ export default function OrderDetailScreen() {
   const contractor  = order.contractor as any;
   const whatsapp    = contractor?.whatsapp_number as string | undefined;
   const isLocal     = order.order_type === 'local';
+  const isFull      = order.cod_dzd === 0;
   const STEP        = isLocal ? LOCAL_STEP_LABELS : STEP_LABELS;
   const partyEn     = isLocal ? 'Seller' : 'Traveler';
 
@@ -226,13 +227,19 @@ export default function OrderDetailScreen() {
           </View>
         )}
 
-        {/* Remaining payment banner */}
-        {!isTerminal && order.status !== 'released_to_seller' && (
+        {/* Remaining payment banner (hidden when fully prepaid) */}
+        {!isTerminal && order.status !== 'released_to_seller' && order.cod_dzd > 0 && (
           <View style={styles.codBanner}>
             <Text style={{ fontSize: 18 }}>💰</Text>
             <Text style={styles.codBannerText}>
               Remaining: <Text style={styles.codAmount}>{formatPrice(order.cod_dzd)}</Text> (pay on delivery)
             </Text>
+          </View>
+        )}
+        {!isTerminal && order.status !== 'released_to_seller' && isFull && (
+          <View style={styles.codBanner}>
+            <Text style={{ fontSize: 18 }}>✅</Text>
+            <Text style={styles.codBannerText}>Fully prepaid — nothing due on delivery</Text>
           </View>
         )}
 
@@ -283,12 +290,19 @@ export default function OrderDetailScreen() {
         {/* Payment summary */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>ملخص الدفع | Payment Summary</Text>
-          <Row label="Total" value={formatPrice(order.contractor_total_dzd)} />
+          <Row label={isLocal ? 'Item Price' : 'Total'} value={formatPrice(order.contractor_total_dzd)} />
           <Row label="Security Deposit (20%)" value={formatPrice(order.deposit_dzd)} />
-          <Row label="Platform Fee (5%)" value={formatPrice(order.buyer_fee_dzd)} />
+          <Row label={isLocal ? 'KABA Fee (5%)' : 'Platform Fee (5%)'} value={formatPrice(order.buyer_fee_dzd)} />
           <View style={styles.divider} />
-          <Row label="Paid Upfront (25%)" value={formatPrice(order.upfront_dzd)} bold accent />
-          <Row label="Cash on Delivery (80%)" value={formatPrice(order.cod_dzd)} />
+          <Row
+            label={isFull ? 'Paid in Full' : 'Paid Upfront (25%)'}
+            value={formatPrice(order.upfront_dzd)}
+            bold
+            accent
+          />
+          {isFull
+            ? <Row label="On Delivery" value="—" />
+            : <Row label={isLocal ? 'Cash on Delivery (75%)' : 'Cash on Delivery (80%)'} value={formatPrice(order.cod_dzd)} />}
         </View>
 
         {/* Receipt */}

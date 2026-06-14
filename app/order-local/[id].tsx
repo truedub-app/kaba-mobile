@@ -36,6 +36,7 @@ export default function OrderLocalScreen() {
   const [loading,    setLoading]    = useState(true);
   const [receipt,    setReceipt]    = useState<string | null>(null); // local URI
   const [payMethod,  setPayMethod]  = useState<PayMethod>('chargily');
+  const [plan,       setPlan]       = useState<'deposit' | 'full'>('deposit');
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -55,8 +56,10 @@ export default function OrderLocalScreen() {
   const depositDzd = Math.round(price * 0.20);
   const buyerFee   = Math.round(price * 0.05);
   const sellerFee  = Math.round(price * 0.05);
-  const upfrontDzd = depositDzd + buyerFee;
-  const codDzd     = price - depositDzd;
+  const isFull     = plan === 'full';
+  // Buyer pays exactly the listing price (the 5% fee is absorbed, not added on top)
+  const upfrontDzd = isFull ? price : depositDzd + buyerFee;
+  const codDzd     = isFull ? 0 : price - (depositDzd + buyerFee);
   const imageUrl   = listing?.images?.length ? getListingImageUrl(listing.images, 0) : null;
 
   const pickReceipt = async () => {
@@ -78,6 +81,7 @@ export default function OrderLocalScreen() {
         trip_id:                null,
         product_title:          listing.title,
         product_url:            null,
+        payment_plan:           plan,
         product_image:          imageUrl,
         product_platform:       'local',
         product_price_original: price,
@@ -202,6 +206,29 @@ export default function OrderLocalScreen() {
           </View>
         </View>
 
+        {/* Payment plan selector */}
+        <Text style={styles.label}>How would you like to pay?</Text>
+        <View style={styles.payRow}>
+          <TouchableOpacity
+            style={[styles.planCard, !isFull && styles.planCardActive]}
+            onPress={() => setPlan('deposit')}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.planTitle}>Deposit only</Text>
+            <Text style={styles.planAmount}>{formatPrice(depositDzd + buyerFee)}</Text>
+            <Text style={styles.planSub}>25% now · rest on delivery</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.planCard, isFull && styles.planCardActive]}
+            onPress={() => setPlan('full')}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.planTitle}>Full amount</Text>
+            <Text style={styles.planAmount}>{formatPrice(price)}</Text>
+            <Text style={styles.planSub}>Pay everything now</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Price breakdown */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Payment Breakdown</Text>
@@ -209,11 +236,21 @@ export default function OrderLocalScreen() {
           <Row label="Security Deposit (20%)" value={formatPrice(depositDzd)} />
           <Row label="KABA Fee (5%)" value={formatPrice(buyerFee)} />
           <View style={styles.divider} />
-          <Row label="Due Now" value={formatPrice(upfrontDzd)} bold accent />
-          <View style={styles.codBox}>
-            <Row label="Cash on Delivery (80%)" value={formatPrice(codDzd)} />
-            <Text style={styles.codNote}>Paid to the seller when your item arrives</Text>
-          </View>
+          <Row label={isFull ? 'Due Now (full)' : 'Due Now (25%)'} value={formatPrice(upfrontDzd)} bold accent />
+          {isFull ? (
+            <View style={[styles.codBox, { backgroundColor: '#f0fdf4' }]}>
+              <Row label="On delivery" value="—" />
+              <Text style={[styles.codNote, { color: '#15803d' }]}>Fully prepaid — nothing due on delivery</Text>
+            </View>
+          ) : (
+            <View style={styles.codBox}>
+              <Row label="Cash on Delivery (75%)" value={formatPrice(codDzd)} />
+              <Text style={styles.codNote}>Paid to the seller when your item arrives</Text>
+            </View>
+          )}
+          <Text style={styles.totalNote}>
+            Total you pay: <Text style={{ fontWeight: '800', color: '#374151' }}>{formatPrice(price)}</Text> — the listing price, no extra fees.
+          </Text>
         </View>
 
         {/* Escrow reassurance */}
@@ -354,6 +391,12 @@ const styles = StyleSheet.create({
   payRow: { flexDirection: 'row', gap: 10, marginBottom: 14 },
   payCard: { flex: 1, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 14, padding: 12, backgroundColor: '#fff' },
   payCardActive: { borderColor: '#15803d', backgroundColor: '#f0fdf4' },
+  planCard: { flex: 1, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 14, padding: 12, backgroundColor: '#fff' },
+  planCardActive: { borderColor: '#15803d', backgroundColor: '#f0fdf4' },
+  planTitle: { fontSize: 13, fontWeight: '800', color: '#111827' },
+  planAmount: { fontSize: 17, fontWeight: '900', color: '#15803d', marginTop: 2 },
+  planSub: { fontSize: 10.5, color: '#6b7280', marginTop: 2 },
+  totalNote: { fontSize: 10.5, color: '#9ca3af', marginTop: 8, lineHeight: 15 },
   payEmoji: { fontSize: 20, marginBottom: 4 },
   payTitle: { fontSize: 13.5, fontWeight: '800', color: '#111827' },
   paySub:   { fontSize: 11, color: '#6b7280', marginTop: 1 },

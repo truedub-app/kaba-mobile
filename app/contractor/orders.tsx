@@ -289,7 +289,7 @@ export default function OrderRequestsScreen() {
                     <Ionicons name="checkmark-done-circle" size={15} color="#15803d" />
                     <Text style={styles.confirmedText}>
                       {order.order_type === 'local'
-                        ? `Received ${formatPrice(order.cod_dzd + order.deposit_dzd - order.seller_fee_dzd)}`
+                        ? `Received ${formatPrice(order.cod_dzd + order.upfront_dzd - order.buyer_fee_dzd - order.seller_fee_dzd)}`
                         : `Earned ${formatPrice(order.deposit_dzd - order.seller_fee_dzd)}`}
                     </Text>
                   </View>
