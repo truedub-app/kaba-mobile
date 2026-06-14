@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  ScrollView, ActivityIndicator, Alert, Image,
+  ScrollView, ActivityIndicator, Alert, Image, Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -251,6 +251,20 @@ function RequestCard({ order, muted, children }: {
             </View>
           )}
           <Text style={styles.buyerName} numberOfLines={1}>{buyer?.full_name ?? 'Buyer'}</Text>
+          {buyer?.whatsapp_number && (
+            <TouchableOpacity
+              style={styles.contactBuyerBtn}
+              hitSlop={6}
+              activeOpacity={0.8}
+              onPress={() => {
+                const num = String(buyer.whatsapp_number).replace(/\D/g, '');
+                const text = encodeURIComponent(`Hi ${buyer.full_name ?? ''}, regarding your KABA order: "${order.product_title}".`);
+                Linking.openURL(`https://wa.me/${num}?text=${text}`);
+              }}
+            >
+              <Ionicons name="logo-whatsapp" size={16} color="#15803d" />
+            </TouchableOpacity>
+          )}
         </View>
         <View style={styles.paidBadge}>
           <Text style={styles.paidBadgeText}>20% Paid ✓</Text>
@@ -348,6 +362,10 @@ const styles = StyleSheet.create({
   buyerAvatarFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: '#dcfce7' },
   buyerInitial: { fontSize: 18, fontWeight: '800', color: '#15803d' },
   buyerName: { fontSize: 15.5, fontWeight: '800', color: '#111827', flexShrink: 1 },
+  contactBuyerBtn: {
+    width: 30, height: 30, borderRadius: 15, borderWidth: 1, borderColor: '#bbf7d0',
+    backgroundColor: '#f0fdf4', alignItems: 'center', justifyContent: 'center',
+  },
   paidBadge: {
     backgroundColor: '#dcfce7', borderRadius: 999,
     paddingHorizontal: 11, paddingVertical: 5,
