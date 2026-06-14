@@ -169,18 +169,19 @@ export function useChat(conversationId: string, currentUserId: string | null | u
 }
 
 export async function getOrCreateConversation(
-  listingId: string,
+  listingId: string | null,
   buyerId: string,
   sellerId: string
 ): Promise<string | null> {
-  // Check for existing conversation
-  const { data: existing } = await supabase
+  // Check for existing conversation. Import chats have no listing, so match on
+  // the null listing rather than a concrete id.
+  let lookup = supabase
     .from('conversations')
     .select('id')
-    .eq('listing_id', listingId)
     .eq('buyer_id', buyerId)
-    .eq('seller_id', sellerId)
-    .maybeSingle();
+    .eq('seller_id', sellerId);
+  lookup = listingId ? lookup.eq('listing_id', listingId) : lookup.is('listing_id', null);
+  const { data: existing } = await lookup.maybeSingle();
 
   if (existing) return existing.id;
 

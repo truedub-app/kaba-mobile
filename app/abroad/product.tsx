@@ -8,6 +8,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { supabase } from '@/src/lib/supabase';
 import { useImportSearch } from '@/src/hooks/useImportSearch';
+import { getOrCreateConversation } from '@/src/hooks/useMessages';
 import { useAuthStore } from '@/src/hooks/useAuth';
 import { formatPrice } from '@/src/lib/utils';
 import type { TravelTrip, Profile } from '@/src/types';
@@ -111,6 +112,29 @@ export default function AbroadProductScreen() {
   const fastest  = options.length ? Math.min(...options.map(o => o.eta_days)) : 0;
 
   const selectedOpt = options.find(o => o.trip.id === selected);
+
+  const [messaging, setMessaging] = useState(false);
+
+  /** Open (or create) a KABA chat with the selected traveler before ordering. */
+  const handleMessage = async () => {
+    if (!session?.user) {
+      Alert.alert('Sign In Required', 'Please sign in to message the traveler.', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Sign In', onPress: () => router.push('/(auth)/login') },
+      ]);
+      return;
+    }
+    if (!selectedOpt) return;
+    setMessaging(true);
+    const convId = await getOrCreateConversation(
+      null,
+      session.user.id,
+      selectedOpt.trip.contractor.id,
+    );
+    setMessaging(false);
+    if (convId) router.push(`/chat/${convId}`);
+    else Alert.alert('Error', "Couldn't open the conversation. Please try again.");
+  };
 
   const handleOrder = () => {
     if (!session?.user) {
@@ -300,6 +324,17 @@ export default function AbroadProductScreen() {
             <Text style={styles.ctaTotal}>{formatPrice(selectedOpt.upfront)} upfront</Text>
             <Text style={styles.ctaCod}>+ {formatPrice(selectedOpt.cod)} on delivery</Text>
           </View>
+          {/* Message on KABA before ordering */}
+          <TouchableOpacity
+            style={styles.ctaContactBtn}
+            activeOpacity={0.85}
+            onPress={handleMessage}
+            disabled={messaging}
+          >
+            {messaging
+              ? <ActivityIndicator size="small" color="#15803d" />
+              : <Ionicons name="chatbubble-ellipses-outline" size={18} color="#15803d" />}
+          </TouchableOpacity>
           {(selectedOpt.trip.contractor as any)?.whatsapp_number && (
             <TouchableOpacity
               style={styles.ctaContactBtn}
