@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { supabase } from '@/src/lib/supabase';
 import { useAuthStore } from '@/src/hooks/useAuth';
+import { getOrCreateConversation } from '@/src/hooks/useMessages';
 import { fetchAbroadItemById } from '@/src/hooks/useAbroadItems';
 import { formatPrice } from '@/src/lib/utils';
 import { CONDITION_LABELS } from '@/src/types';
@@ -76,39 +77,10 @@ export default function AbroadItemDetailScreen() {
     }
     if (!item) return;
 
-    // Open (or create) conversation with the contractor
-    const { data: existing } = await supabase
-      .from('conversations')
-      .select('id')
-      .eq('buyer_id', session.user.id)
-      .eq('seller_id', item.contractor_id)
-      .is('listing_id', null)
-      .single();
-
-    if (existing) {
-      router.push(`/chat/${existing.id}`);
-    } else {
-      const { data: newConv } = await supabase
-        .from('conversations')
-        .insert({
-          buyer_id:  session.user.id,
-          seller_id: item.contractor_id,
-          listing_id: null,
-          last_message: `Hi, I'm interested in your abroad item: ${item.title}`,
-          last_message_at: new Date().toISOString(),
-        })
-        .select('id')
-        .single();
-      if (newConv) {
-        // Send the first message
-        await supabase.from('messages').insert({
-          conversation_id: newConv.id,
-          sender_id: session.user.id,
-          content: `Hi! I'm interested in your item: "${item.title}" (${item.source_country}). Is it still available?`,
-        });
-        router.push(`/chat/${newConv.id}`);
-      }
-    }
+    // One conversation per buyer↔contractor pair, regardless of which item.
+    const convId = await getOrCreateConversation(null, session.user.id, item.contractor_id);
+    if (convId) router.push(`/chat/${convId}`);
+    else Alert.alert('Error', 'Could not start conversation. Please try again.');
   };
 
   if (loading) {

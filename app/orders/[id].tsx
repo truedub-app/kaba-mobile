@@ -8,6 +8,7 @@ import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { supabase } from '@/src/lib/supabase';
 import { useAuthStore } from '@/src/hooks/useAuth';
+import { getOrCreateConversation } from '@/src/hooks/useMessages';
 import { formatPrice } from '@/src/lib/utils';
 import { STATUS_LABELS } from '@/src/types';
 import type { ImportRequest, ImportRequestStatus } from '@/src/types';
@@ -43,6 +44,16 @@ export default function OrderDetailScreen() {
   const [order,    setOrder]    = useState<ImportRequest | null>(null);
   const [loading,  setLoading]  = useState(true);
   const [actioning, setActioning] = useState(false);
+  const [messaging, setMessaging] = useState(false);
+
+  const openChat = async () => {
+    if (!session?.user || !order) return;
+    setMessaging(true);
+    const convId = await getOrCreateConversation(null, session.user.id, order.contractor_id);
+    setMessaging(false);
+    if (convId) router.push(`/chat/${convId}`);
+    else Alert.alert('Error', 'Could not open the conversation.');
+  };
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -265,25 +276,28 @@ export default function OrderDetailScreen() {
             <TouchableOpacity
               style={styles.contactBtn}
               activeOpacity={0.8}
-              onPress={() => {
-                if (whatsapp) Linking.openURL(`https://wa.me/${whatsapp.replace(/[^\d]/g, '')}`);
-                else Alert.alert('Unavailable', 'This traveler has no WhatsApp number yet.');
-              }}
+              onPress={openChat}
+              disabled={messaging}
             >
-              <Ionicons name="chatbox-ellipses-outline" size={18} color="#166534" />
-              <Text style={styles.contactBtnText}>رسالة | Message</Text>
+              {messaging ? (
+                <ActivityIndicator size="small" color="#166534" />
+              ) : (
+                <>
+                  <Ionicons name="chatbubble-ellipses-outline" size={18} color="#166534" />
+                  <Text style={styles.contactBtnText}>رسالة | Message</Text>
+                </>
+              )}
             </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.contactBtn}
-              activeOpacity={0.8}
-              onPress={() => {
-                if (whatsapp) Linking.openURL(`tel:${whatsapp}`);
-                else Alert.alert('Unavailable', 'This traveler has no phone number yet.');
-              }}
-            >
-              <Ionicons name="call-outline" size={18} color="#166534" />
-              <Text style={styles.contactBtnText}>اتصال | Call</Text>
-            </TouchableOpacity>
+            {whatsapp ? (
+              <TouchableOpacity
+                style={styles.contactBtn}
+                activeOpacity={0.8}
+                onPress={() => Linking.openURL(`https://wa.me/${whatsapp.replace(/[^\d]/g, '')}`)}
+              >
+                <Ionicons name="logo-whatsapp" size={18} color="#16a34a" />
+                <Text style={styles.contactBtnText}>WhatsApp</Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
         </View>
 

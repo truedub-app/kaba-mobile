@@ -6,13 +6,17 @@ import {
   StyleSheet,
   ActivityIndicator,
   Dimensions,
+  TouchableOpacity,
+  Linking,
+  Alert,
 } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { FlashList } from '@shopify/flash-list';
 import { Avatar } from '@/components/Avatar';
 import { ListingCard } from '@/components/ListingCard';
 import { supabase } from '@/src/lib/supabase';
+import { useAuthStore } from '@/src/hooks/useAuth';
+import { getOrCreateConversation } from '@/src/hooks/useMessages';
 import type { Profile, Listing } from '@/src/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -20,9 +24,28 @@ const COLUMN_WIDTH = (SCREEN_WIDTH - 16 * 2 - 8) / 2;
 
 export default function UserProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
+  const session = useAuthStore((s) => s.session);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
+  const [messaging, setMessaging] = useState(false);
+
+  const handleMessage = async () => {
+    if (!session?.user) { router.push('/(auth)/login'); return; }
+    if (!profile) return;
+    setMessaging(true);
+    const convId = await getOrCreateConversation(null, session.user.id, profile.id);
+    setMessaging(false);
+    if (convId) router.push(`/chat/${convId}`);
+    else Alert.alert('Error', 'Could not open the conversation. Please try again.');
+  };
+
+  const handleWhatsApp = () => {
+    const num = profile?.whatsapp_number?.replace(/\D/g, '');
+    if (!num) return;
+    Linking.openURL(`https://wa.me/${num}`).catch(() => Alert.alert('Error', 'Could not open WhatsApp'));
+  };
 
   useEffect(() => {
     if (!id) return;
@@ -81,6 +104,37 @@ export default function UserProfileScreen() {
           Member since {new Date(profile.created_at).getFullYear()}
         </Text>
       </View>
+
+      {/* Contact buttons (hidden on your own profile) */}
+      {session?.user?.id !== profile.id && (
+        <View style={styles.contactRow}>
+          <TouchableOpacity
+            style={[styles.contactBtn, styles.msgBtn]}
+            onPress={handleMessage}
+            disabled={messaging}
+            activeOpacity={0.85}
+          >
+            {messaging ? (
+              <ActivityIndicator color="#15803d" size="small" />
+            ) : (
+              <>
+                <Ionicons name="chatbubble-ellipses-outline" size={18} color="#15803d" />
+                <Text style={styles.msgBtnText}>Message</Text>
+              </>
+            )}
+          </TouchableOpacity>
+          {profile.whatsapp_number ? (
+            <TouchableOpacity
+              style={[styles.contactBtn, styles.waBtn]}
+              onPress={handleWhatsApp}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="logo-whatsapp" size={18} color="#16a34a" />
+              <Text style={styles.waBtnText}>WhatsApp</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      )}
 
       {/* Bio */}
       {profile.bio && (
@@ -147,6 +201,15 @@ const styles = StyleSheet.create({
   rating: { fontSize: 15, fontWeight: '700', color: '#374151' },
   reviewCount: { fontSize: 13, color: '#9ca3af' },
   memberSince: { fontSize: 12, color: '#9ca3af', marginTop: 4 },
+  contactRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 16, paddingTop: 14 },
+  contactBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 7, borderRadius: 12, height: 48, borderWidth: 1.5,
+  },
+  msgBtn: { borderColor: '#15803d', backgroundColor: '#f0fdf4' },
+  msgBtnText: { color: '#15803d', fontWeight: '700', fontSize: 14 },
+  waBtn: { borderColor: '#16a34a', backgroundColor: '#f0fdf4' },
+  waBtnText: { color: '#15803d', fontWeight: '700', fontSize: 14 },
   bioCard: {
     margin: 16,
     backgroundColor: '#f9fafb',

@@ -173,21 +173,27 @@ export async function getOrCreateConversation(
   buyerId: string,
   sellerId: string
 ): Promise<string | null> {
-  // Check for existing conversation. Import chats have no listing, so match on
-  // the null listing rather than a concrete id.
-  let lookup = supabase
+  if (!buyerId || !sellerId || buyerId === sellerId) return null;
+
+  // One conversation per pair of people — regardless of which listing/product
+  // sparked it or who messaged first. Match an existing row in EITHER direction
+  // and ignore listing_id so the same seller isn't duplicated across products.
+  const { data: existing } = await supabase
     .from('conversations')
     .select('id')
-    .eq('buyer_id', buyerId)
-    .eq('seller_id', sellerId);
-  lookup = listingId ? lookup.eq('listing_id', listingId) : lookup.is('listing_id', null);
-  const { data: existing } = await lookup.maybeSingle();
+    .or(
+      `and(buyer_id.eq.${buyerId},seller_id.eq.${sellerId}),` +
+        `and(buyer_id.eq.${sellerId},seller_id.eq.${buyerId})`
+    )
+    .order('last_message_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
   if (existing) return existing.id;
 
   const { data: created, error } = await supabase
     .from('conversations')
-    .insert({ listing_id: listingId, buyer_id: buyerId, seller_id: sellerId })
+    .insert({ buyer_id: buyerId, seller_id: sellerId, ...(listingId ? { listing_id: listingId } : {}) })
     .select('id')
     .single();
 

@@ -120,22 +120,28 @@ export default function OrderLocalScreen() {
 
       if (payMethod === 'chargily') {
         const orderId = await createOrder(uid, null);
-        const res = await fetch(`${WEB_API}/api/payments/chargily/import-checkout`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({
-            import_request_id: orderId,
-            return_url: `${WEB_API}/orders/${orderId}?paid=1`,
-          }),
-        });
-        const json = await res.json();
-        if (!res.ok || !json.url) throw new Error(json.error || 'Could not start payment');
-        await WebBrowser.openBrowserAsync(json.url);
-        router.replace('/orders');
-        return;
+        try {
+          const res = await fetch(`${WEB_API}/api/payments/chargily/import-checkout`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({
+              import_request_id: orderId,
+              return_url: `${WEB_API}/orders/${orderId}?paid=1`,
+            }),
+          });
+          const json = await res.json();
+          if (!res.ok || !json.url) throw new Error(json.error || 'Could not start payment');
+          await WebBrowser.openBrowserAsync(json.url);
+          router.replace('/orders');
+          return;
+        } catch (e) {
+          // Couldn't start payment — roll the unpaid order back so it isn't "placed".
+          await supabase.from('import_requests').delete().eq('id', orderId);
+          throw e;
+        }
       }
 
       // Manual: upload BaridiMob receipt (RN uploads ArrayBuffer, not Blob).

@@ -8,6 +8,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { supabase } from '@/src/lib/supabase';
 import { useAuthStore } from '@/src/hooks/useAuth';
+import { getOrCreateConversation } from '@/src/hooks/useMessages';
 import { formatPrice, getAvatarUrl } from '@/src/lib/utils';
 import type { ImportRequest } from '@/src/types';
 
@@ -307,8 +308,22 @@ export default function OrderRequestsScreen() {
 function RequestCard({ order, muted, children }: {
   order: ImportRequest; muted?: boolean; children?: React.ReactNode;
 }) {
+  const router = useRouter();
+  const session = useAuthStore((s) => s.session);
+  const [messaging, setMessaging] = useState(false);
   const buyer = order.buyer as any;
   const avatarUrl = buyer?.avatar_url ? getAvatarUrl(buyer.avatar_url) : null;
+  const waNum = buyer?.whatsapp_number ? String(buyer.whatsapp_number).replace(/\D/g, '') : null;
+
+  const messageBuyer = async () => {
+    if (!session?.user || !buyer?.id) return;
+    setMessaging(true);
+    const id = await getOrCreateConversation(null, session.user.id, buyer.id);
+    setMessaging(false);
+    if (id) router.push(`/chat/${id}`);
+    else Alert.alert('Error', 'Could not open the conversation.');
+  };
+
   return (
     <View style={[styles.card, muted && { opacity: 0.72 }]}>
       <View style={styles.cardTop}>
@@ -321,20 +336,6 @@ function RequestCard({ order, muted, children }: {
             </View>
           )}
           <Text style={styles.buyerName} numberOfLines={1}>{buyer?.full_name ?? 'Buyer'}</Text>
-          {buyer?.whatsapp_number && (
-            <TouchableOpacity
-              style={styles.contactBuyerBtn}
-              hitSlop={6}
-              activeOpacity={0.8}
-              onPress={() => {
-                const num = String(buyer.whatsapp_number).replace(/\D/g, '');
-                const text = encodeURIComponent(`Hi ${buyer.full_name ?? ''}, regarding your KABA order: "${order.product_title}".`);
-                Linking.openURL(`https://wa.me/${num}?text=${text}`);
-              }}
-            >
-              <Ionicons name="logo-whatsapp" size={16} color="#15803d" />
-            </TouchableOpacity>
-          )}
         </View>
         <View style={styles.paidBadge}>
           <Text style={styles.paidBadgeText}>20% Paid ✓</Text>
@@ -367,6 +368,40 @@ function RequestCard({ order, muted, children }: {
       </View>
 
       {children}
+
+      {/* Contact buyer — full-size Message + WhatsApp */}
+      {buyer?.id && (
+        <View style={styles.contactBuyerRow}>
+          <TouchableOpacity
+            style={[styles.contactBuyerBtn, styles.contactMsgBtn]}
+            onPress={messageBuyer}
+            disabled={messaging}
+            activeOpacity={0.85}
+          >
+            {messaging ? (
+              <ActivityIndicator size="small" color="#166534" />
+            ) : (
+              <>
+                <Ionicons name="chatbubble-ellipses-outline" size={17} color="#166534" />
+                <Text style={styles.contactBuyerText}>Message</Text>
+              </>
+            )}
+          </TouchableOpacity>
+          {waNum && (
+            <TouchableOpacity
+              style={[styles.contactBuyerBtn, styles.contactWaBtn]}
+              onPress={() => {
+                const text = encodeURIComponent(`Hi ${buyer.full_name ?? ''}, regarding your KABA order: "${order.product_title}".`);
+                Linking.openURL(`https://wa.me/${waNum}?text=${text}`);
+              }}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="logo-whatsapp" size={17} color="#16a34a" />
+              <Text style={styles.contactBuyerText}>WhatsApp</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
     </View>
   );
 }
@@ -432,10 +467,14 @@ const styles = StyleSheet.create({
   buyerAvatarFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: '#dcfce7' },
   buyerInitial: { fontSize: 18, fontWeight: '800', color: '#15803d' },
   buyerName: { fontSize: 15.5, fontWeight: '800', color: '#111827', flexShrink: 1 },
+  contactBuyerRow: { flexDirection: 'row', gap: 10, marginTop: 10 },
   contactBuyerBtn: {
-    width: 30, height: 30, borderRadius: 15, borderWidth: 1, borderColor: '#bbf7d0',
-    backgroundColor: '#f0fdf4', alignItems: 'center', justifyContent: 'center',
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 7, borderRadius: 12, paddingVertical: 12, borderWidth: 1.5,
   },
+  contactMsgBtn: { borderColor: '#166534', backgroundColor: '#f0fdf4' },
+  contactWaBtn: { borderColor: '#16a34a', backgroundColor: '#f0fdf4' },
+  contactBuyerText: { fontSize: 14, fontWeight: '700', color: '#166534' },
   paidBadge: {
     backgroundColor: '#dcfce7', borderRadius: 999,
     paddingHorizontal: 11, paddingVertical: 5,
