@@ -461,6 +461,28 @@ export default function ListingDetailScreen() {
         {/* ── Action Buttons ── */}
         {!isOwn && (
           <View style={styles.actionBtns}>
+            {listing.status === 'active' && (
+              <>
+                <TouchableOpacity
+                  style={styles.secureBtn}
+                  onPress={() => router.push(`/order-local/${listing.id}` as any)}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons name="shield-checkmark" size={18} color="#fff" />
+                  <Text style={styles.secureBtnText}>Order securely with KABA</Text>
+                </TouchableOpacity>
+                <View style={styles.secureNote}>
+                  <Ionicons name="lock-closed" size={11} color="#15803d" />
+                  <Text style={styles.secureNoteText}>25% deposit now · held by KABA · rest on delivery</Text>
+                </View>
+                <View style={styles.orDivider}>
+                  <View style={styles.orLine} />
+                  <Text style={styles.orText}>or contact directly</Text>
+                  <View style={styles.orLine} />
+                </View>
+              </>
+            )}
+
             <TouchableOpacity
               style={[styles.chatBtn, startingChat && { opacity: 0.7 }]}
               onPress={handleMessage}
@@ -468,10 +490,10 @@ export default function ListingDetailScreen() {
               activeOpacity={0.85}
             >
               {startingChat ? (
-                <ActivityIndicator color="#fff" size="small" />
+                <ActivityIndicator color="#15803d" size="small" />
               ) : (
                 <>
-                  <Ionicons name="chatbubble-outline" size={18} color="#fff" />
+                  <Ionicons name="chatbubble-outline" size={18} color="#15803d" />
                   <Text style={styles.chatBtnText}>Chat with Seller</Text>
                 </>
               )}
@@ -777,7 +799,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     gap: 10,
   },
-  chatBtn: {
+  secureBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -786,7 +808,24 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     height: 52,
   },
-  chatBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  secureBtnText: { color: '#fff', fontWeight: '800', fontSize: 15 },
+  secureNote: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, marginTop: -2 },
+  secureNoteText: { fontSize: 11, color: '#6b7280' },
+  orDivider: { flexDirection: 'row', alignItems: 'center', gap: 8, marginVertical: 2 },
+  orLine: { flex: 1, height: 1, backgroundColor: '#f3f4f6' },
+  orText: { fontSize: 11, color: '#9ca3af', fontWeight: '500' },
+  chatBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#f0fdf4',
+    borderWidth: 1.5,
+    borderColor: '#15803d',
+    borderRadius: 12,
+    height: 52,
+  },
+  chatBtnText: { color: '#15803d', fontWeight: '700', fontSize: 15 },
   waBtn: {
     flexDirection: 'row',
     alignItems: 'center',

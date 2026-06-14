@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  ScrollView, ActivityIndicator, Alert, Image, Linking,
+  ScrollView, ActivityIndicator, Alert, Image, Linking, TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -18,6 +18,8 @@ export default function OrderRequestsScreen() {
   const [orders,    setOrders]    = useState<ImportRequest[]>([]);
   const [loading,   setLoading]   = useState(true);
   const [actioning, setActioning] = useState<string | null>(null);
+  // Per-order courier + tracking inputs for local sales being shipped
+  const [shipForm,  setShipForm]  = useState<Record<string, { courier: string; tracking: string }>>({});
 
   const load = useCallback(async () => {
     if (!session?.user) return;
@@ -58,6 +60,27 @@ export default function OrderRequestsScreen() {
     );
   };
 
+  // Local sale: seller ships the item they already own → in_transit + tracking
+  const markShippedLocal = async (order: ImportRequest) => {
+    const form = shipForm[order.id] ?? { courier: '', tracking: '' };
+    if (!form.courier.trim()) {
+      Alert.alert('Missing', "Enter the courier you're shipping with.");
+      return;
+    }
+    setActioning(order.id + '_accept');
+    const { error } = await supabase
+      .from('import_requests')
+      .update({
+        status: 'in_transit',
+        courier: form.courier.trim(),
+        tracking_number: form.tracking.trim() || null,
+      })
+      .eq('id', order.id);
+    setActioning(null);
+    if (error) Alert.alert('Error', error.message);
+    else load();
+  };
+
   // Decline = flag for admin to refund the buyer's deposit
   const decline = (order: ImportRequest) => {
     Alert.alert(
@@ -89,7 +112,9 @@ export default function OrderRequestsScreen() {
   const confirmDelivery = (order: ImportRequest) => {
     Alert.alert(
       'Confirm Delivery | تأكيد التسليم',
-      'Confirm you have personally handed the item to the buyer?',
+      order.order_type === 'local'
+        ? 'Confirm the buyer has received the item?'
+        : 'Confirm you have personally handed the item to the buyer?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -157,31 +182,74 @@ export default function OrderRequestsScreen() {
             </View>
           ) : (
             <>
-              {/* ── New requests (Accept / Decline) ── */}
+              {/* ── New requests ── */}
               {requests.map((order) => (
                 <RequestCard key={order.id} order={order}>
-                  <View style={styles.actionRow}>
-                    <TouchableOpacity
-                      style={[styles.acceptBtn, actioning === order.id + '_accept' && { opacity: 0.6 }]}
-                      disabled={!!actioning}
-                      onPress={() => accept(order)}
-                      activeOpacity={0.85}
-                    >
-                      {actioning === order.id + '_accept'
-                        ? <ActivityIndicator color="#fff" size="small" />
-                        : <Text style={styles.acceptText}>قبول | Accept</Text>}
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.declineBtn, actioning === order.id + '_decline' && { opacity: 0.6 }]}
-                      disabled={!!actioning}
-                      onPress={() => decline(order)}
-                      activeOpacity={0.85}
-                    >
-                      {actioning === order.id + '_decline'
-                        ? <ActivityIndicator color="#6b7280" size="small" />
-                        : <Text style={styles.declineText}>رفض | Decline</Text>}
-                    </TouchableOpacity>
-                  </View>
+                  {order.order_type === 'local' ? (
+                    <View>
+                      <View style={styles.shipFormRow}>
+                        <TextInput
+                          style={[styles.shipInput, { flex: 1.2 }]}
+                          placeholder="Courier (e.g. Yalidine)"
+                          placeholderTextColor="#9ca3af"
+                          value={shipForm[order.id]?.courier ?? ''}
+                          onChangeText={(t) => setShipForm((s) => ({ ...s, [order.id]: { courier: t, tracking: s[order.id]?.tracking ?? '' } }))}
+                        />
+                        <TextInput
+                          style={[styles.shipInput, { flex: 1 }]}
+                          placeholder="Tracking (optional)"
+                          placeholderTextColor="#9ca3af"
+                          value={shipForm[order.id]?.tracking ?? ''}
+                          onChangeText={(t) => setShipForm((s) => ({ ...s, [order.id]: { courier: s[order.id]?.courier ?? '', tracking: t } }))}
+                        />
+                      </View>
+                      <View style={styles.actionRow}>
+                        <TouchableOpacity
+                          style={[styles.acceptBtn, { flex: 2 }, actioning === order.id + '_accept' && { opacity: 0.6 }]}
+                          disabled={!!actioning}
+                          onPress={() => markShippedLocal(order)}
+                          activeOpacity={0.85}
+                        >
+                          {actioning === order.id + '_accept'
+                            ? <ActivityIndicator color="#fff" size="small" />
+                            : <Text style={styles.acceptText}>📦 Mark as Shipped</Text>}
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[styles.declineBtn, actioning === order.id + '_decline' && { opacity: 0.6 }]}
+                          disabled={!!actioning}
+                          onPress={() => decline(order)}
+                          activeOpacity={0.85}
+                        >
+                          {actioning === order.id + '_decline'
+                            ? <ActivityIndicator color="#6b7280" size="small" />
+                            : <Text style={styles.declineText}>Decline</Text>}
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ) : (
+                    <View style={styles.actionRow}>
+                      <TouchableOpacity
+                        style={[styles.acceptBtn, actioning === order.id + '_accept' && { opacity: 0.6 }]}
+                        disabled={!!actioning}
+                        onPress={() => accept(order)}
+                        activeOpacity={0.85}
+                      >
+                        {actioning === order.id + '_accept'
+                          ? <ActivityIndicator color="#fff" size="small" />
+                          : <Text style={styles.acceptText}>قبول | Accept</Text>}
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.declineBtn, actioning === order.id + '_decline' && { opacity: 0.6 }]}
+                        disabled={!!actioning}
+                        onPress={() => decline(order)}
+                        activeOpacity={0.85}
+                      >
+                        {actioning === order.id + '_decline'
+                          ? <ActivityIndicator color="#6b7280" size="small" />
+                          : <Text style={styles.declineText}>رفض | Decline</Text>}
+                      </TouchableOpacity>
+                    </View>
+                  )}
                 </RequestCard>
               ))}
 
@@ -220,7 +288,9 @@ export default function OrderRequestsScreen() {
                   <View style={styles.confirmedRow}>
                     <Ionicons name="checkmark-done-circle" size={15} color="#15803d" />
                     <Text style={styles.confirmedText}>
-                      Earned {formatPrice(order.deposit_dzd - order.seller_fee_dzd)}
+                      {order.order_type === 'local'
+                        ? `Received ${formatPrice(order.cod_dzd + order.deposit_dzd - order.seller_fee_dzd)}`
+                        : `Earned ${formatPrice(order.deposit_dzd - order.seller_fee_dzd)}`}
                     </Text>
                   </View>
                 </RequestCard>
@@ -381,6 +451,12 @@ const styles = StyleSheet.create({
   locationText: { fontSize: 12, color: '#374151' },
   productPrice: { fontSize: 17, fontWeight: '900', color: '#166534' },
 
+  shipFormRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
+  shipInput: {
+    borderWidth: 1, borderColor: '#d1d5db', borderRadius: 10,
+    paddingHorizontal: 10, paddingVertical: 9, fontSize: 13, color: '#111827',
+    backgroundColor: '#fff',
+  },
   actionRow: { flexDirection: 'row', gap: 10 },
   acceptBtn: {
     flex: 1, backgroundColor: '#166534', borderRadius: 12,

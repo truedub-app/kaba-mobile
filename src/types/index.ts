@@ -274,6 +274,10 @@ export interface ImportRequest {
   buyer_id: string;
   contractor_id: string;
   trip_id: string | null;
+  order_type: 'import' | 'local';
+  listing_id: string | null;
+  courier: string | null;
+  tracking_number: string | null;
   product_title: string;
   product_url: string | null;
   product_image: string | null;

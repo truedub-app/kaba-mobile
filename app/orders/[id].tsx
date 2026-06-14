@@ -26,6 +26,13 @@ const STEP_LABELS: Partial<Record<ImportRequestStatus, { ar: string; en: string;
   released_to_seller:    { ar: 'تم التسليم',    en: 'Delivered',        desc: 'Order complete. Thank you!' },
 };
 
+const LOCAL_STEP_LABELS: Partial<Record<ImportRequestStatus, { ar: string; en: string; desc: string }>> = {
+  awaiting_verification: { ar: 'طلب مؤكد',     en: 'Order Confirmed', desc: 'Confirming your deposit payment' },
+  deposit_held:          { ar: 'تم قبول الطلب', en: 'Order Accepted',  desc: 'Seller is preparing to ship your item' },
+  in_transit:            { ar: 'في الطريق',     en: 'Shipped',         desc: 'Your item is on the way' },
+  released_to_seller:    { ar: 'تم التسليم',    en: 'Delivered',        desc: 'Order complete. Thank you!' },
+};
+
 const TERMINAL: ImportRequestStatus[] = ['disputed', 'liquidated', 'refunded'];
 
 export default function OrderDetailScreen() {
@@ -54,7 +61,7 @@ export default function OrderDetailScreen() {
     if (!order) return;
     Alert.alert(
       'تأكيد الاستلام | Confirm Delivery',
-      'Confirm you have received the item and are satisfied? This releases the escrow to the traveler.',
+      'Confirm you have received the item and are satisfied? This releases the held escrow deposit to the seller.',
       [
         { text: 'Not Yet', style: 'cancel' },
         {
@@ -114,6 +121,9 @@ export default function OrderDetailScreen() {
   const showActions = isBuyer && order.status === 'in_transit' && !order.buyer_confirmed_at;
   const contractor  = order.contractor as any;
   const whatsapp    = contractor?.whatsapp_number as string | undefined;
+  const isLocal     = order.order_type === 'local';
+  const STEP        = isLocal ? LOCAL_STEP_LABELS : STEP_LABELS;
+  const partyEn     = isLocal ? 'Seller' : 'Traveler';
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -143,7 +153,7 @@ export default function OrderDetailScreen() {
                   </Text>
                 </View>
                 <Text style={styles.travelerLabel}>
-                  Traveler: <Text style={styles.travelerName}>{contractor?.full_name ?? 'Traveler'}</Text>
+                  {partyEn}: <Text style={styles.travelerName}>{contractor?.full_name ?? partyEn}</Text>
                 </Text>
               </View>
             </View>
@@ -172,7 +182,7 @@ export default function OrderDetailScreen() {
             {TIMELINE_STEPS.map((step, idx) => {
               const done   = idx < currentIdx;
               const active = idx === currentIdx;
-              const info   = STEP_LABELS[step]!;
+              const info   = STEP[step]!;
               const isTransitActive = active && step === 'in_transit';
 
               return (
@@ -188,7 +198,7 @@ export default function OrderDetailScreen() {
                     isTransitActive && styles.nodeTransit,
                   ]}>
                     {isTransitActive ? (
-                      <Ionicons name="airplane" size={15} color="#fff" />
+                      <Ionicons name={isLocal ? 'cube' : 'airplane'} size={15} color="#fff" />
                     ) : done || active ? (
                       <Ionicons name="checkmark" size={15} color="#fff" />
                     ) : null}
@@ -205,7 +215,9 @@ export default function OrderDetailScreen() {
                       <Text style={styles.stepDesc}>{info.desc}</Text>
                     )}
                     {isTransitActive && (
-                      <Text style={styles.stepEta}>✈️ Confirm once the item is in your hands</Text>
+                      <Text style={styles.stepEta}>
+                        {isLocal ? '📦' : '✈️'} Confirm once the item is in your hands
+                      </Text>
                     )}
                   </View>
                 </View>
@@ -224,9 +236,24 @@ export default function OrderDetailScreen() {
           </View>
         )}
 
-        {/* Contact traveler */}
+        {/* Shipment tracking (local orders, once shipped) */}
+        {isLocal && (order.courier || order.tracking_number) ? (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>الشحن | Shipment</Text>
+            {order.courier ? <Row label="Courier" value={order.courier} /> : null}
+            {order.tracking_number ? <Row label="Tracking number" value={order.tracking_number} /> : null}
+            <Text style={{ fontSize: 11, color: '#9ca3af', marginTop: 6, lineHeight: 16 }}>
+              Track your parcel on the courier's website, then confirm receipt to release the
+              seller's deposit.
+            </Text>
+          </View>
+        ) : null}
+
+        {/* Contact seller / traveler */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>تواصل مع المسافر | Contact Traveler</Text>
+          <Text style={styles.cardTitle}>
+            {isLocal ? 'تواصل مع البائع | Contact Seller' : 'تواصل مع المسافر | Contact Traveler'}
+          </Text>
           <View style={styles.contactRow}>
             <TouchableOpacity
               style={styles.contactBtn}
@@ -322,7 +349,7 @@ export default function OrderDetailScreen() {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Ionicons name="checkmark-circle" size={16} color="#15803d" />
               <Text style={{ fontSize: 13, fontWeight: '600', color: '#15803d' }}>
-                You confirmed delivery — waiting for traveler to confirm.
+                You confirmed delivery — waiting for {partyEn.toLowerCase()} to confirm.
               </Text>
             </View>
           </View>
