@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView,
-  Platform, ScrollView, ActivityIndicator, StyleSheet,
+  Platform, ScrollView, ActivityIndicator, StyleSheet, Image,
 } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -63,7 +63,7 @@ export default function RegisterScreen() {
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           {/* Logo */}
           <View style={styles.logoArea}>
-            <Text style={styles.logoText}>KABA</Text>
+            <Image source={require('../../assets/logo.png')} style={styles.logoImage} resizeMode="contain" />
             <Text style={styles.title}>Create account</Text>
             <Text style={styles.subtitle}>Join thousands of buyers and sellers</Text>
           </View>
@@ -181,6 +181,7 @@ const styles = StyleSheet.create({
   container: { flexGrow: 1, paddingHorizontal: 24, paddingBottom: 40 },
   logoArea: { alignItems: 'center', paddingTop: 48, paddingBottom: 28 },
   logoText: { fontSize: 36, fontWeight: '900', color: '#166534', letterSpacing: -1 },
+  logoImage: { width: 180, height: 64, marginBottom: 6 },
   title: { fontSize: 24, fontWeight: '700', color: '#111827', marginTop: 12 },
   subtitle: { fontSize: 14, color: '#6b7280', marginTop: 4 },
   googleBtn: {

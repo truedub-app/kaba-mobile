@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  View, Text, Modal, TouchableOpacity, StyleSheet,
+  View, Text, Modal, TouchableOpacity, StyleSheet, Linking,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
@@ -123,8 +123,11 @@ export function AppHeader({ leftSlot }: Props = {}) {
                 </TouchableOpacity>
               )}
               {profile?.role === 'admin' && (
-                <TouchableOpacity style={styles.menuItem}>
-                  <Text style={styles.menuItemText}>Admin Dashboard</Text>
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => { setMenuVisible(false); Linking.openURL('https://dz-kaba.com/admin'); }}
+                >
+                  <Text style={styles.menuItemText}>Admin Dashboard ↗</Text>
                 </TouchableOpacity>
               )}
               {session ? (
