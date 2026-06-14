@@ -29,6 +29,7 @@ export function AppTabBar() {
   const session = useAuthStore((s) => s.session);
   const profile = useAuthStore((s) => s.profile);
   const [unread, setUnread] = useState(0);
+  const [orderNotif, setOrderNotif] = useState(0);
 
   // Total unread messages — shown as a badge on the Messages tab,
   // kept live via the conversations realtime stream.
@@ -55,6 +56,25 @@ export function AppTabBar() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations', filter: `seller_id=eq.${userId}` }, fetchUnread)
       .subscribe();
 
+    return () => { supabase.removeChannel(channel); };
+  }, [userId]);
+
+  // New order requests awaiting the seller's action → badge on the Dashboard tab.
+  useEffect(() => {
+    if (!userId) { setOrderNotif(0); return; }
+    const fetchOrders = async () => {
+      const { count } = await supabase
+        .from('import_requests')
+        .select('id', { count: 'exact', head: true })
+        .eq('contractor_id', userId)
+        .eq('status', 'deposit_held');
+      setOrderNotif(count ?? 0);
+    };
+    fetchOrders();
+    const channel = supabase
+      .channel(`tabbar-orders:${userId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'import_requests', filter: `contractor_id=eq.${userId}` }, fetchOrders)
+      .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [userId]);
 
@@ -98,7 +118,12 @@ export function AppTabBar() {
 
   const renderTab = (tab: { name: string; ar: string; href: string; iconOff: string; iconOn: string }) => {
     const active = tab.href === activeHref;
-    const showBadge = tab.href === '/messages' && unread > 0;
+    const badgeCount = tab.href === '/messages'
+      ? unread
+      : tab.href === '/seller-dashboard'
+      ? orderNotif
+      : 0;
+    const showBadge = badgeCount > 0;
     return (
       <TouchableOpacity
         key={tab.href}
@@ -114,7 +139,7 @@ export function AppTabBar() {
           />
           {showBadge && (
             <View style={styles.badge}>
-              <Text style={styles.badgeText}>{unread > 9 ? '9+' : unread}</Text>
+              <Text style={styles.badgeText}>{badgeCount > 9 ? '9+' : badgeCount}</Text>
             </View>
           )}
         </View>

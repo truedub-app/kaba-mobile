@@ -31,8 +31,12 @@ export function useConversations(userId: string | null | undefined) {
   // Realtime: reload when any conversation changes for this user
   useEffect(() => {
     if (!userId) return;
+    // Unique topic per mount — supabase.channel() returns an EXISTING channel if
+    // the topic matches, and adding `.on()` to an already-subscribed channel
+    // throws "cannot add postgres_changes callbacks after subscribe()". A unique
+    // suffix guarantees a fresh channel every time.
     const channel = supabase
-      .channel(`conversations:${userId}`)
+      .channel(`conversations:${userId}:${Date.now()}-${Math.random().toString(36).slice(2)}`)
       .on(
         'postgres_changes',
         {
@@ -110,7 +114,7 @@ export function useChat(conversationId: string, currentUserId: string | null | u
     load();
 
     const channel = supabase
-      .channel(`messages:${conversationId}`)
+      .channel(`messages:${conversationId}:${Date.now()}-${Math.random().toString(36).slice(2)}`)
       .on(
         'postgres_changes',
         {

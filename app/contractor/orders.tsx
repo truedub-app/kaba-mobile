@@ -324,6 +324,15 @@ function RequestCard({ order, muted, children }: {
     else Alert.alert('Error', 'Could not open the conversation.');
   };
 
+  const openProduct = () => {
+    if (order.order_type === 'local' && order.listing_id) {
+      router.push(`/listing/${order.listing_id}`);
+    } else if (order.product_url) {
+      Linking.openURL(order.product_url);
+    }
+  };
+  const productTappable = (order.order_type === 'local' && !!order.listing_id) || !!order.product_url;
+
   return (
     <View style={[styles.card, muted && { opacity: 0.72 }]}>
       <View style={styles.cardTop}>
@@ -342,7 +351,12 @@ function RequestCard({ order, muted, children }: {
         </View>
       </View>
 
-      <View style={styles.productRow}>
+      <TouchableOpacity
+        style={styles.productRow}
+        activeOpacity={productTappable ? 0.6 : 1}
+        onPress={productTappable ? openProduct : undefined}
+        disabled={!productTappable}
+      >
         {order.product_image ? (
           <Image source={{ uri: order.product_image }} style={styles.productThumb} resizeMode="contain" />
         ) : (
@@ -352,7 +366,11 @@ function RequestCard({ order, muted, children }: {
         )}
         <View style={{ flex: 1 }}>
           <Text style={styles.productTitle} numberOfLines={2}>{order.product_title}</Text>
-          <Text style={styles.productMeta}>Quantity: 1</Text>
+          {productTappable && (
+            <Text style={styles.viewProduct}>
+              {order.order_type === 'local' ? 'View listing →' : 'View product →'}
+            </Text>
+          )}
           <View style={styles.locationRow}>
             <Ionicons name="location-sharp" size={13} color="#15803d" />
             <Text style={styles.locationText}>Algeria</Text>
@@ -365,7 +383,21 @@ function RequestCard({ order, muted, children }: {
             maximumFractionDigits: 0,
           })}
         </Text>
-      </View>
+      </TouchableOpacity>
+
+      {/* Ship-to address (local orders) */}
+      {order.shipping_address ? (
+        <View style={styles.shipTo}>
+          <Ionicons name="location-outline" size={15} color="#15803d" />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.shipToLabel}>Ship to</Text>
+            <Text style={styles.shipToText}>{order.shipping_address}</Text>
+            {order.shipping_phone ? (
+              <Text style={styles.shipToPhone}>📞 {order.shipping_phone}</Text>
+            ) : null}
+          </View>
+        </View>
+      ) : null}
 
       {children}
 
@@ -486,6 +518,14 @@ const styles = StyleSheet.create({
   productThumbFallback: { alignItems: 'center', justifyContent: 'center' },
   productTitle: { fontSize: 14, fontWeight: '700', color: '#111827', lineHeight: 19 },
   productMeta: { fontSize: 12, color: '#9ca3af', marginTop: 3 },
+  viewProduct: { fontSize: 12, color: '#15803d', fontWeight: '700', marginTop: 3 },
+  shipTo: {
+    flexDirection: 'row', gap: 8, alignItems: 'flex-start',
+    backgroundColor: '#f0fdf4', borderRadius: 12, padding: 10, marginBottom: 12,
+  },
+  shipToLabel: { fontSize: 11, fontWeight: '800', color: '#166534', marginBottom: 2 },
+  shipToText: { fontSize: 13, color: '#374151', lineHeight: 18 },
+  shipToPhone: { fontSize: 12.5, color: '#15803d', fontWeight: '700', marginTop: 3 },
   locationRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 4 },
   locationText: { fontSize: 12, color: '#374151' },
   productPrice: { fontSize: 17, fontWeight: '900', color: '#166534' },

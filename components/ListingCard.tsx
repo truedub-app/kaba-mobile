@@ -8,6 +8,12 @@ import { formatPrice, formatDate, getListingImageUrl } from '@/src/lib/utils';
 
 const PLACEHOLDER = require('../assets/images/icon.png');
 
+const FLAG_MAP: Record<string, string> = {
+  'Saudi Arabia': '🇸🇦', China: '🇨🇳', Turkey: '🇹🇷', UAE: '🇦🇪', France: '🇫🇷',
+  Germany: '🇩🇪', USA: '🇺🇸', Japan: '🇯🇵', 'South Korea': '🇰🇷', Italy: '🇮🇹',
+  Spain: '🇪🇸', UK: '🇬🇧', India: '🇮🇳', Algeria: '🇩🇿',
+};
+
 interface Props {
   listing: Listing;
   onFavoriteToggle?: (id: string) => void;
@@ -18,6 +24,7 @@ export function ListingCard({ listing, onFavoriteToggle, isFavorited = false }: 
   const router = useRouter();
   const imageUrl = getListingImageUrl(listing.images);
   const imageCount = listing.images?.length ?? 0;
+  const originFlag = listing.origin_country ? (FLAG_MAP[listing.origin_country] ?? '🌍') : null;
 
   return (
     <TouchableOpacity
@@ -67,6 +74,14 @@ export function ListingCard({ listing, onFavoriteToggle, isFavorited = false }: 
           <View style={styles.photoCountBadge}>
             <Ionicons name="images-outline" size={10} color="#fff" />
             <Text style={styles.photoCountText}>{imageCount} photos</Text>
+          </View>
+        )}
+
+        {/* Bottom-left: country of origin flag */}
+        {originFlag && (
+          <View style={styles.originBadge}>
+            <Text style={styles.originFlag}>{originFlag}</Text>
+            <Text style={styles.originText} numberOfLines={1}>{listing.origin_country}</Text>
           </View>
         )}
       </View>
@@ -167,6 +182,21 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '500',
   },
+  originBadge: {
+    position: 'absolute',
+    bottom: 6,
+    left: 6,
+    maxWidth: '70%',
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    borderRadius: 4,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  originFlag: { fontSize: 11 },
+  originText: { fontSize: 9, fontWeight: '700', color: '#374151', flexShrink: 1 },
   info: {
     padding: 10,
     gap: 2,

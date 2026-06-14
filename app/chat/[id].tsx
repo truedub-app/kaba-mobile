@@ -11,8 +11,8 @@ import {
   StyleSheet,
   Alert,
 } from 'react-native';
-import { useLocalSearchParams, useNavigation } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { MessageBubble } from '@/components/MessageBubble';
@@ -23,10 +23,8 @@ import { supabase } from '@/src/lib/supabase';
 
 export default function ChatScreen() {
   const { id: conversationId } = useLocalSearchParams<{ id: string }>();
-  const navigation = useNavigation();
+  const router = useRouter();
   const insets = useSafeAreaInsets();
-  // Native stack header height = top safe-area inset + 44pt standard nav bar
-  const headerHeight = insets.top + 44;
   const session = useAuthStore((s) => s.session);
   const currentUserId = session?.user?.id ?? null;
 
@@ -36,8 +34,11 @@ export default function ChatScreen() {
   const flatListRef = useRef<FlatList>(null);
   const [conversation, setConversation] = useState<any>(null);
 
+  const other = conversation
+    ? (conversation.buyer_id === currentUserId ? conversation.seller : conversation.buyer)
+    : null;
+
   useEffect(() => {
-    // Load conversation info for header
     supabase
       .from('conversations')
       .select(`
@@ -48,27 +49,12 @@ export default function ChatScreen() {
       `)
       .eq('id', conversationId)
       .single()
-      .then(({ data }) => {
-        if (data) {
-          setConversation(data);
-          const other =
-            data.buyer_id === currentUserId ? data.seller : data.buyer;
-          navigation.setOptions({
-            title: other?.full_name ?? 'Chat',
-            headerRight: () => (
-              <Avatar name={other?.full_name} avatarUrl={other?.avatar_url} size={32} />
-            ),
-          });
-        }
-      });
+      .then(({ data }) => { if (data) setConversation(data); });
   }, [conversationId, currentUserId]);
 
   useEffect(() => {
     if (messages.length > 0) {
-      setTimeout(
-        () => flatListRef.current?.scrollToEnd({ animated: true }),
-        100
-      );
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
     }
   }, [messages.length]);
 
@@ -127,90 +113,109 @@ export default function ChatScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.root}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? headerHeight : 0}
-    >
-      {/* Listing context banner */}
-      {conversation?.listing && (
-        <View style={styles.listingBanner}>
-          <Ionicons name="pricetag-outline" size={13} color="#15803d" />
-          <Text style={styles.listingBannerText} numberOfLines={1}>
-            re: {conversation.listing.title}
-          </Text>
-        </View>
-      )}
-
-      {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator color="#15803d" />
-        </View>
-      ) : (
-        <FlatList
-          ref={flatListRef}
-          data={messages}
-          keyExtractor={(m) => m.id}
-          renderItem={({ item }) => (
-            <MessageBubble message={item} isMine={item.sender_id === currentUserId} />
-          )}
-          contentContainerStyle={styles.messageList}
-          ListEmptyComponent={
-            <View style={styles.emptyChat}>
-              <Text style={styles.emptyChatText}>Start the conversation!</Text>
-            </View>
-          }
-          onContentSizeChange={() =>
-            flatListRef.current?.scrollToEnd({ animated: false })
-          }
-        />
-      )}
-
-      {/* Input bar — AppTabBar in root layout handles the bottom safe area */}
-      <View style={styles.inputBar}>
-        <TouchableOpacity
-          style={styles.attachBtn}
-          onPress={handleImagePick}
-          disabled={uploadingImage || sending}
-        >
-          {uploadingImage ? (
-            <ActivityIndicator size="small" color="#15803d" />
-          ) : (
-            <Ionicons name="image-outline" size={22} color="#6b7280" />
-          )}
+    <SafeAreaView style={styles.root} edges={['top']}>
+      {/* Custom header with a back button (works from any screen) */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={10}>
+          <Ionicons name="arrow-back" size={24} color="#111827" />
         </TouchableOpacity>
-
-        <TextInput
-          style={styles.input}
-          value={text}
-          onChangeText={setText}
-          placeholder="Type a message..."
-          placeholderTextColor="#9ca3af"
-          multiline
-          maxLength={1000}
-          returnKeyType="send"
-          onSubmitEditing={handleSend}
-        />
-
-        <TouchableOpacity
-          style={[styles.sendBtn, (!text.trim() || sending) && styles.sendBtnDisabled]}
-          onPress={handleSend}
-          disabled={!text.trim() || sending}
-          activeOpacity={0.7}
-        >
-          {sending ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
-            <Ionicons name="send" size={18} color="#fff" />
-          )}
-        </TouchableOpacity>
+        <Text style={styles.headerName} numberOfLines={1}>{other?.full_name ?? 'Chat'}</Text>
+        {other
+          ? <Avatar name={other.full_name} avatarUrl={other.avatar_url} size={34} />
+          : <View style={{ width: 34 }} />}
       </View>
-    </KeyboardAvoidingView>
+
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={insets.top + 52}
+      >
+        {/* Listing context banner */}
+        {conversation?.listing && (
+          <View style={styles.listingBanner}>
+            <Ionicons name="pricetag-outline" size={13} color="#15803d" />
+            <Text style={styles.listingBannerText} numberOfLines={1}>
+              re: {conversation.listing.title}
+            </Text>
+          </View>
+        )}
+
+        {loading ? (
+          <View style={styles.center}>
+            <ActivityIndicator color="#15803d" />
+          </View>
+        ) : (
+          <FlatList
+            ref={flatListRef}
+            data={messages}
+            keyExtractor={(m) => m.id}
+            renderItem={({ item }) => (
+              <MessageBubble message={item} isMine={item.sender_id === currentUserId} />
+            )}
+            contentContainerStyle={styles.messageList}
+            ListEmptyComponent={
+              <View style={styles.emptyChat}>
+                <Text style={styles.emptyChatText}>Start the conversation!</Text>
+              </View>
+            }
+            onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
+          />
+        )}
+
+        {/* Input bar */}
+        <View style={styles.inputBar}>
+          <TouchableOpacity
+            style={styles.attachBtn}
+            onPress={handleImagePick}
+            disabled={uploadingImage || sending}
+          >
+            {uploadingImage ? (
+              <ActivityIndicator size="small" color="#15803d" />
+            ) : (
+              <Ionicons name="image-outline" size={22} color="#6b7280" />
+            )}
+          </TouchableOpacity>
+
+          <TextInput
+            style={styles.input}
+            value={text}
+            onChangeText={setText}
+            placeholder="Type a message..."
+            placeholderTextColor="#9ca3af"
+            multiline
+            maxLength={1000}
+            returnKeyType="send"
+            onSubmitEditing={handleSend}
+          />
+
+          <TouchableOpacity
+            style={[styles.sendBtn, (!text.trim() || sending) && styles.sendBtnDisabled]}
+            onPress={handleSend}
+            disabled={!text.trim() || sending}
+            activeOpacity={0.7}
+          >
+            {sending ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Ionicons name="send" size={18} color="#fff" />
+            )}
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#fff' },
+  flex: { flex: 1 },
+  header: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingHorizontal: 12, paddingVertical: 10,
+    borderBottomWidth: 1, borderBottomColor: '#f3f4f6', backgroundColor: '#fff',
+  },
+  backBtn: { padding: 2 },
+  headerName: { flex: 1, fontSize: 16, fontWeight: '800', color: '#111827' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   authRequired: { color: '#6b7280', fontSize: 15 },
   listingBanner: {

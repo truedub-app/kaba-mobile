@@ -9,7 +9,6 @@ import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { AppHeader } from '@/components/AppHeader';
-import { SearchBar } from '@/components/SearchBar';
 import { Avatar } from '@/components/Avatar';
 import { ListingCard } from '@/components/ListingCard';
 import { EmptyState } from '@/components/EmptyState';
@@ -131,12 +130,6 @@ export default function ProfileScreen() {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
         <AppHeader />
-        <SearchBar
-          value=""
-          onChangeText={() => {}}
-          onSubmit={() => router.push('/(tabs)/browse')}
-          placeholder="Search items, categories or locations..."
-        />
         <EmptyState
           emoji="👤"
           title="Sign in to view your profile"
@@ -156,12 +149,6 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <AppHeader />
-      <SearchBar
-        value=""
-        onChangeText={() => {}}
-        onSubmit={() => router.push('/(tabs)/browse')}
-        placeholder="Search items, categories or locations..."
-      />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
         {/* ── Profile Card ── */}
@@ -243,7 +230,7 @@ export default function ProfileScreen() {
               <View style={[styles.quickLinkIcon, { backgroundColor: '#eff6ff' }]}>
                 <Ionicons name="cube-outline" size={18} color="#1d4ed8" />
               </View>
-              <Text style={styles.quickLinkText}>My Deliveries</Text>
+              <Text style={styles.quickLinkText}>Order requests</Text>
               <Ionicons name="chevron-forward" size={14} color="#9ca3af" />
             </TouchableOpacity>
           )}

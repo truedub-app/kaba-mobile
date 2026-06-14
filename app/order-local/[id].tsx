@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  ActivityIndicator, Alert, Image,
+  ActivityIndicator, Alert, Image, TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -37,6 +37,8 @@ export default function OrderLocalScreen() {
   const [receipt,    setReceipt]    = useState<string | null>(null); // local URI
   const [payMethod,  setPayMethod]  = useState<PayMethod>('chargily');
   const [plan,       setPlan]       = useState<'deposit' | 'full'>('deposit');
+  const [address,    setAddress]    = useState('');
+  const [phone,      setPhone]      = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -88,6 +90,8 @@ export default function OrderLocalScreen() {
         product_currency:       'DZD',
         platform_rate_used:     1,
         contractor_total_dzd:   price,
+        shipping_address:       address.trim(),
+        shipping_phone:         phone.trim(),
         deposit_dzd:            depositDzd,
         buyer_fee_dzd:          buyerFee,
         seller_fee_dzd:         sellerFee,
@@ -107,6 +111,10 @@ export default function OrderLocalScreen() {
     if (!listing) return;
     if (listing.seller_id === session.user.id) {
       Alert.alert('Not allowed', "You can't order your own listing.");
+      return;
+    }
+    if (!address.trim() || !phone.trim()) {
+      Alert.alert('Missing', 'Please enter your delivery address and phone.');
       return;
     }
     if (payMethod === 'manual' && !receipt) {
@@ -210,6 +218,27 @@ export default function OrderLocalScreen() {
             <Text style={styles.productTitle} numberOfLines={2}>{listing.title}</Text>
             <Text style={styles.productPlatform}>In Algeria</Text>
           </View>
+        </View>
+
+        {/* Delivery address */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Delivery Address</Text>
+          <TextInput
+            style={styles.addrInput}
+            value={address}
+            onChangeText={setAddress}
+            placeholder="Street, building, apartment, city"
+            placeholderTextColor="#9ca3af"
+            multiline
+          />
+          <TextInput
+            style={[styles.addrInput, { minHeight: 0 }]}
+            value={phone}
+            onChangeText={setPhone}
+            placeholder="Phone number for delivery"
+            placeholderTextColor="#9ca3af"
+            keyboardType="phone-pad"
+          />
         </View>
 
         {/* Payment plan selector */}
@@ -380,6 +409,11 @@ const styles = StyleSheet.create({
 
   card: { backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#e5e7eb', padding: 14, marginBottom: 14 },
   cardTitle: { fontSize: 14, fontWeight: '700', color: '#111827', marginBottom: 10 },
+  addrInput: {
+    borderWidth: 1, borderColor: '#d1d5db', borderRadius: 10,
+    paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: '#111827',
+    minHeight: 56, marginBottom: 8, textAlignVertical: 'top',
+  },
   row: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
   rowLabel: { fontSize: 13, color: '#6b7280' },
   rowValue: { fontSize: 13, fontWeight: '700', color: '#111827' },

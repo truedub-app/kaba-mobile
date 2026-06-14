@@ -99,7 +99,10 @@ export default function HomeScreen() {
   }, [session, favorited]);
 
   const renderListing = useCallback(({ item }: { item: Listing }) => (
-    <View style={{ width: CARD_WIDTH }}>
+    // flex:1 so each card fills its half of the row (FlashList ignores fixed
+    // widths narrower than the column → cards looked shifted left). Padding
+    // creates the gutter between/around the two columns.
+    <View style={{ flex: 1, paddingHorizontal: 6, paddingBottom: 12 }}>
       <ListingCard
         listing={item}
         isFavorited={favorited.has(item.id)}
@@ -294,7 +297,7 @@ export default function HomeScreen() {
         onRefresh={refresh}
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
-        contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 20 }}
+        contentContainerStyle={{ paddingHorizontal: 6, paddingBottom: 20 }}
       />
 
       {loading && listings.length === 0 && (

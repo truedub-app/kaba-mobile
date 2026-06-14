@@ -250,7 +250,7 @@ export default function SellerDashboardScreen() {
               onPress={() => router.push('/contractor/orders')}
             >
               <Ionicons name="cube-outline" size={18} color="#15803d" />
-              <Text style={styles.importBtnText}>My Deliveries</Text>
+              <Text style={styles.importBtnText}>Order requests</Text>
             </TouchableOpacity>
           </View>
         </View>

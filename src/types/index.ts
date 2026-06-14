@@ -279,6 +279,8 @@ export interface ImportRequest {
   listing_id: string | null;
   courier: string | null;
   tracking_number: string | null;
+  shipping_address: string | null;
+  shipping_phone: string | null;
   product_title: string;
   product_url: string | null;
   product_image: string | null;
