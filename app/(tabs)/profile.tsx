@@ -230,7 +230,7 @@ export default function ProfileScreen() {
             <View style={[styles.quickLinkIcon, { backgroundColor: '#f0fdf4' }]}>
               <Ionicons name="bag-outline" size={18} color="#15803d" />
             </View>
-            <Text style={styles.quickLinkText}>Import Orders</Text>
+            <Text style={styles.quickLinkText}>My Orders</Text>
             <Ionicons name="chevron-forward" size={14} color="#9ca3af" />
           </TouchableOpacity>
 

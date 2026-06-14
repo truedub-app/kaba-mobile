@@ -20,7 +20,7 @@ export interface SearchProduct {
 export interface FullProduct extends SearchProduct {
   images: string[];
   description: string;
-  variants?: { name: string; values: string[] }[];
+  variants?: { name: string; values: { label: string; image?: string }[] }[];
 }
 
 export function useImportSearch() {

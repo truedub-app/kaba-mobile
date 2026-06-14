@@ -141,7 +141,7 @@ function Header({ onBack }: { onBack: () => void }) {
       <TouchableOpacity onPress={onBack} style={styles.backBtn}>
         <Ionicons name="arrow-back" size={22} color="#111827" />
       </TouchableOpacity>
-      <Text style={styles.headerTitle}>Import Orders</Text>
+      <Text style={styles.headerTitle}>My Orders</Text>
     </View>
   );
 }

@@ -61,14 +61,16 @@ export default function AbroadProductScreen() {
   const [loading, setLoading]   = useState(true);
   const [selected, setSelected] = useState<string | null>(null);
   const [sort, setSort]         = useState<'price' | 'speed'>('price');
-  const [variants, setVariants] = useState<{ name: string; values: string[] }[]>([]);
+  const [variants, setVariants] = useState<{ name: string; values: { label: string; image?: string }[] }[]>([]);
   const [variant, setVariant]   = useState<Record<string, string>>({});
+  /** Main image — swapped when a colour variant with its own photo is picked */
+  const [displayImage, setDisplayImage] = useState<string | null>(null);
 
   // Fetch variant options in the background (non-blocking)
   useEffect(() => {
     if (!params.product_url) return;
     fetchProduct(params.product_url)
-      .then((p) => { if (p.variants?.length) setVariants(p.variants); })
+      .then((p) => { if (p.variants?.length) setVariants(p.variants as any); })
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.product_url]);
@@ -142,8 +144,8 @@ export default function AbroadProductScreen() {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Product image */}
         <View style={styles.imgBox}>
-          {params.product_image ? (
-            <Image source={{ uri: params.product_image }} style={StyleSheet.absoluteFill as any} resizeMode="contain" />
+          {(displayImage || params.product_image) ? (
+            <Image source={{ uri: displayImage || params.product_image }} style={StyleSheet.absoluteFill as any} resizeMode="contain" />
           ) : (
             <Text style={{ fontSize: 60 }}>🛍️</Text>
           )}
@@ -184,15 +186,21 @@ export default function AbroadProductScreen() {
               <Text style={styles.variantLabel}>{group.name}</Text>
               <View style={styles.variantRow}>
                 {group.values.map((val) => {
-                  const active = variant[group.name] === val;
+                  const active = variant[group.name] === val.label;
                   return (
                     <TouchableOpacity
-                      key={val}
-                      style={[styles.variantChip, active && styles.variantChipActive]}
-                      onPress={() => setVariant((v) => ({ ...v, [group.name]: val }))}
+                      key={val.label}
+                      style={[styles.variantChip, active && styles.variantChipActive, val.image && styles.variantChipWithImg]}
+                      onPress={() => {
+                        setVariant((v) => ({ ...v, [group.name]: val.label }));
+                        if (val.image) setDisplayImage(val.image);
+                      }}
                       activeOpacity={0.8}
                     >
-                      <Text style={[styles.variantChipText, active && styles.variantChipTextActive]}>{val}</Text>
+                      {val.image && (
+                        <Image source={{ uri: val.image }} style={styles.variantThumb} resizeMode="cover" />
+                      )}
+                      <Text style={[styles.variantChipText, active && styles.variantChipTextActive]}>{val.label}</Text>
                     </TouchableOpacity>
                   );
                 })}
@@ -344,7 +352,9 @@ const styles = StyleSheet.create({
   ratingCount: { fontSize: 12, color: '#9ca3af', marginLeft: 4 },
   variantLabel: { fontSize: 12, fontWeight: '700', color: '#374151', marginBottom: 6, textTransform: 'capitalize' },
   variantRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  variantChip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10, borderWidth: 1, borderColor: '#d1d5db', backgroundColor: '#fff' },
+  variantChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10, borderWidth: 1, borderColor: '#d1d5db', backgroundColor: '#fff' },
+  variantChipWithImg: { paddingLeft: 6 },
+  variantThumb: { width: 24, height: 24, borderRadius: 6, backgroundColor: '#f3f4f6' },
   variantChipActive: { borderColor: '#15803d', backgroundColor: '#f0fdf4' },
   variantChipText: { fontSize: 12.5, color: '#374151', fontWeight: '600' },
   variantChipTextActive: { color: '#15803d', fontWeight: '800' },
