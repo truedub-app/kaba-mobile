@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-const WEB_API = process.env.EXPO_PUBLIC_KABA_API_URL ?? 'https://dz-kaba.com';
+const WEB_API = process.env.EXPO_PUBLIC_KABA_API_URL ?? 'https://www.dz-kaba.com';
 
 export interface SearchProduct {
   id: string;

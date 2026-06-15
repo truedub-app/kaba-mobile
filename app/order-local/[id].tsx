@@ -12,7 +12,7 @@ import { supabase, getFreshAccessToken } from '@/src/lib/supabase';
 import { useAuthStore } from '@/src/hooks/useAuth';
 import { formatPrice, getListingImageUrl } from '@/src/lib/utils';
 
-const WEB_API = process.env.EXPO_PUBLIC_KABA_API_URL ?? 'https://dz-kaba.com';
+const WEB_API = process.env.EXPO_PUBLIC_KABA_API_URL ?? 'https://www.dz-kaba.com';
 
 type PayMethod = 'chargily' | 'manual';
 

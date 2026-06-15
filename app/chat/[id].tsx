@@ -79,15 +79,19 @@ export default function ChatScreen() {
     setUploadingImage(true);
     try {
       const asset = result.assets[0];
-      const ext = asset.uri.split('.').pop() ?? 'jpg';
+      const rawExt = (asset.uri.split('.').pop() ?? 'jpg').toLowerCase();
+      const ext = rawExt === 'jpeg' ? 'jpg' : rawExt.replace(/[^a-z0-9]/g, '') || 'jpg';
       const path = `${conversationId}/${Date.now()}.${ext}`;
 
+      // RN: fetch(uri).blob() often yields a 0-byte blob — use arrayBuffer (same
+      // fix as the receipt upload).
       const response = await fetch(asset.uri);
-      const blob = await response.blob();
+      if (!response.ok) throw new Error(`Failed to read image: ${response.status}`);
+      const arrayBuffer = await response.arrayBuffer();
 
       const { data, error } = await supabase.storage
         .from('chat-images')
-        .upload(path, blob, { contentType: `image/${ext}` });
+        .upload(path, arrayBuffer, { contentType: ext === 'png' ? 'image/png' : 'image/jpeg', upsert: false });
 
       if (error) {
         Alert.alert('Upload failed', error.message);

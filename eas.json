@@ -13,7 +13,7 @@
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://rpxgroyypkxpxkqorxbo.supabase.co",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJweGdyb3l5cGt4cHhrcW9yeGJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzNzE5NzksImV4cCI6MjA5NTk0Nzk3OX0.IyrSxFIISFz5ftJ5bng3jjjRGuwrcMcjHJOKHpq7OOQ",
-        "EXPO_PUBLIC_KABA_API_URL": "https://dz-kaba.com"
+        "EXPO_PUBLIC_KABA_API_URL": "https://www.dz-kaba.com"
       }
     },
     "preview": {
@@ -27,7 +27,7 @@
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://rpxgroyypkxpxkqorxbo.supabase.co",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJweGdyb3l5cGt4cHhrcW9yeGJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzNzE5NzksImV4cCI6MjA5NTk0Nzk3OX0.IyrSxFIISFz5ftJ5bng3jjjRGuwrcMcjHJOKHpq7OOQ",
-        "EXPO_PUBLIC_KABA_API_URL": "https://dz-kaba.com"
+        "EXPO_PUBLIC_KABA_API_URL": "https://www.dz-kaba.com"
       }
     },
     "production": {
@@ -35,7 +35,7 @@
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://rpxgroyypkxpxkqorxbo.supabase.co",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJweGdyb3l5cGt4cHhrcW9yeGJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzNzE5NzksImV4cCI6MjA5NTk0Nzk3OX0.IyrSxFIISFz5ftJ5bng3jjjRGuwrcMcjHJOKHpq7OOQ",
-        "EXPO_PUBLIC_KABA_API_URL": "https://dz-kaba.com"
+        "EXPO_PUBLIC_KABA_API_URL": "https://www.dz-kaba.com"
       }
     }
   },

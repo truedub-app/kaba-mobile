@@ -21,7 +21,7 @@ interface AuthStore {
   refreshProfile: () => Promise<void>;
 }
 
-export const useAuthStore = create<AuthStore>((set) => ({
+export const useAuthStore = create<AuthStore>((set, get) => ({
   session: null,
   profile: null,
   loading: true,
@@ -87,6 +87,13 @@ export const useAuthStore = create<AuthStore>((set) => ({
   },
 
   signOut: async () => {
+    // Clear this device's push token from the profile so the next account that
+    // logs in on this phone doesn't inherit it (which caused senders to receive
+    // pushes meant for the other party when testing multiple accounts).
+    const uid = get().session?.user?.id;
+    if (uid) {
+      await supabase.from('profiles').update({ expo_push_token: null }).eq('id', uid).then(() => {});
+    }
     await supabase.auth.signOut();
     set({ session: null, profile: null });
   },
