@@ -74,3 +74,19 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     detectSessionInUrl: Platform.OS === 'web',
   },
 });
+
+/**
+ * Returns a valid access token for calling the web API, force-refreshing if the
+ * stored one is expired/near-expiry. The cached token going stale was causing
+ * the Chargily checkout to fail with 401 Unauthorized in the app.
+ */
+export async function getFreshAccessToken(): Promise<string | null> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) return null;
+  const expMs = (session.expires_at ?? 0) * 1000;
+  if (!expMs || expMs < Date.now() + 60_000) {
+    const { data, error } = await supabase.auth.refreshSession();
+    if (!error && data.session) return data.session.access_token;
+  }
+  return session.access_token ?? null;
+}

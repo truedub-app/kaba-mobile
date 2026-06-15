@@ -8,7 +8,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import * as WebBrowser from 'expo-web-browser';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { supabase } from '@/src/lib/supabase';
+import { supabase, getFreshAccessToken } from '@/src/lib/supabase';
 import { useAuthStore } from '@/src/hooks/useAuth';
 import { formatPrice } from '@/src/lib/utils';
 
@@ -99,9 +99,8 @@ export default function AbroadOrderScreen() {
         const orderId = await createOrder(uid, null);
         try {
           // 2. Ask the web API to open a Chargily checkout for the deposit
-          // Fresh token — the cached one may have expired (would 401 the checkout).
-          const { data: { session: fresh } } = await supabase.auth.getSession();
-          const accessToken = fresh?.access_token ?? session.access_token;
+          // Force-refresh the token if stale (was 401-ing the checkout in the app).
+          const accessToken = await getFreshAccessToken();
           const res = await fetch(`${WEB_API}/api/payments/chargily/import-checkout`, {
             method: 'POST',
             headers: {
