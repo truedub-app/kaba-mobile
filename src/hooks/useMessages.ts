@@ -172,6 +172,40 @@ export function useChat(conversationId: string, currentUserId: string | null | u
   return { messages, loading, sending, sendMessage };
 }
 
+export interface ProductRef {
+  title: string;
+  image?: string | null;
+  price?: number | null;
+  url?: string | null;       // external product (abroad)
+  listingId?: string | null; // local listing → /listing/[id]
+}
+
+/** Drop a product card into the chat so both parties can tap to open it.
+ *  Skips if the most recent message is already the same product (no spam). */
+export async function sendProductCard(conversationId: string, senderId: string, p: ProductRef) {
+  const { data: last } = await supabase
+    .from('messages')
+    .select('product_listing_id, product_url')
+    .eq('conversation_id', conversationId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (last && ((p.listingId && last.product_listing_id === p.listingId) ||
+               (p.url && last.product_url === p.url))) {
+    return;
+  }
+  await supabase.from('messages').insert({
+    conversation_id: conversationId,
+    sender_id: senderId,
+    content: p.title,
+    product_title: p.title,
+    product_image: p.image ?? null,
+    product_price: p.price ?? null,
+    product_url: p.url ?? null,
+    product_listing_id: p.listingId ?? null,
+  });
+}
+
 export async function getOrCreateConversation(
   listingId: string | null,
   buyerId: string,

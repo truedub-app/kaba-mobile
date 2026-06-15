@@ -8,7 +8,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { supabase } from '@/src/lib/supabase';
 import { useImportSearch } from '@/src/hooks/useImportSearch';
-import { getOrCreateConversation } from '@/src/hooks/useMessages';
+import { getOrCreateConversation, sendProductCard } from '@/src/hooks/useMessages';
 import { useAuthStore } from '@/src/hooks/useAuth';
 import { formatPrice } from '@/src/lib/utils';
 import type { TravelTrip, Profile } from '@/src/types';
@@ -131,6 +131,14 @@ export default function AbroadProductScreen() {
       session.user.id,
       selectedOpt.trip.contractor.id,
     );
+    if (convId) {
+      await sendProductCard(convId, session.user.id, {
+        title: params.product_title,
+        image: displayImage || params.product_image,
+        price: priceDzd,
+        url: params.product_url,
+      });
+    }
     setMessaging(false);
     if (convId) router.push(`/chat/${convId}`);
     else Alert.alert('Error', "Couldn't open the conversation. Please try again.");

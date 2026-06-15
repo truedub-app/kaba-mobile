@@ -21,10 +21,10 @@ import { SellerCard } from '@/components/SellerCard';
 import { Avatar } from '@/components/Avatar';
 import { AppHeader } from '@/components/AppHeader';
 import { SearchBar } from '@/components/SearchBar';
-import { formatPrice, formatDate } from '@/src/lib/utils';
+import { formatPrice, formatDate, getListingImageUrl } from '@/src/lib/utils';
 import { fetchListingById, fetchRelatedListings } from '@/src/hooks/useListings';
 import { checkIsFavorited, toggleFavorite } from '@/src/hooks/useFavorites';
-import { getOrCreateConversation } from '@/src/hooks/useMessages';
+import { getOrCreateConversation, sendProductCard } from '@/src/hooks/useMessages';
 import { useAuthStore } from '@/src/hooks/useAuth';
 import { supabase } from '@/src/lib/supabase';
 import type { Listing, Review } from '@/src/types';
@@ -125,6 +125,14 @@ export default function ListingDetailScreen() {
       session.user!.id,
       listing.seller_id
     );
+    if (conversationId) {
+      await sendProductCard(conversationId, session.user!.id, {
+        title: listing.title,
+        image: getListingImageUrl(listing.images),
+        price: listing.price,
+        listingId: listing.id,
+      });
+    }
     setStartingChat(false);
     if (conversationId) {
       router.push(`/chat/${conversationId}`);

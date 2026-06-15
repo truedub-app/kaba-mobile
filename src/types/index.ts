@@ -108,6 +108,12 @@ export interface Message {
   image_url: string | null;
   read_at: string | null;
   created_at: string;
+  // Product card (when a buyer contacts a seller about a product)
+  product_title: string | null;
+  product_image: string | null;
+  product_price: number | null;
+  product_url: string | null;
+  product_listing_id: string | null;
   sender?: Profile;
 }
 
