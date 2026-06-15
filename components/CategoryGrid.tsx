@@ -31,8 +31,10 @@ export function CategoryGrid({ categories, selectedId, onSelect }: Props) {
   // Measure the actual container (parents add their own padding, so
   // computing from the screen width breaks the 3-column layout).
   const [gridWidth, setGridWidth] = useState(0);
+  // Floor so 3 cells + gaps can never exceed the row by a sub-pixel (which made
+  // the grid wrap to 2 columns on some screen widths).
   const cellSize = gridWidth > 0
-    ? (gridWidth - PADDING * 2 - GAP * (NUM_COLS - 1)) / NUM_COLS
+    ? Math.floor((gridWidth - PADDING * 2 - GAP * (NUM_COLS - 1)) / NUM_COLS)
     : 0;
 
   return (

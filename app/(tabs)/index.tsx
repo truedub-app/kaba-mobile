@@ -225,7 +225,7 @@ export default function HomeScreen() {
           </View>
           <View style={styles.gridWrap}>
             {featuredListings.map((item) => (
-              <View key={item.id} style={{ width: CARD_WIDTH }}>
+              <View key={item.id} style={styles.gridCell}>
                 <ListingCard
                   listing={item}
                   isFavorited={favorited.has(item.id)}
@@ -347,7 +347,8 @@ const styles = StyleSheet.create({
   seeAll: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   seeAllText: { fontSize: 12, color: '#15803d', fontWeight: '700' },
 
-  gridWrap: { flexDirection: 'row', flexWrap: 'wrap' },
+  gridWrap: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 6 },
+  gridCell: { width: '50%', paddingHorizontal: 6 },
 
   activeFilters: {
     flexDirection: 'row', flexWrap: 'wrap',

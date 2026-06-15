@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  ActivityIndicator, Alert, Image,
+  ActivityIndicator, Alert, Image, TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -34,6 +34,8 @@ export default function AbroadOrderScreen() {
 
   const [receipt,    setReceipt]    = useState<string | null>(null); // local URI
   const [payMethod,  setPayMethod]  = useState<PayMethod>('chargily');
+  const [address,    setAddress]    = useState('');
+  const [phone,      setPhone]      = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const pickReceipt = async () => {
@@ -61,6 +63,8 @@ export default function AbroadOrderScreen() {
         product_currency:       params.currency ?? 'EUR',
         platform_rate_used:     priceOrig > 0 ? priceDzd / priceOrig : 240,
         contractor_total_dzd:   totalDzd,
+        shipping_address:       address.trim(),
+        shipping_phone:         phone.trim(),
         deposit_dzd:            depositDzd,
         buyer_fee_dzd:          buyerFee,
         seller_fee_dzd:         Math.round(totalDzd * 0.05),
@@ -77,6 +81,10 @@ export default function AbroadOrderScreen() {
 
   const handleSubmit = async () => {
     if (!session?.user) return;
+    if (!address.trim() || !phone.trim()) {
+      Alert.alert('Missing', 'Please enter your delivery address and phone.');
+      return;
+    }
     if (payMethod === 'manual' && !receipt) {
       Alert.alert('Missing', 'Please upload your BaridiMob receipt.');
       return;
@@ -91,11 +99,14 @@ export default function AbroadOrderScreen() {
         const orderId = await createOrder(uid, null);
         try {
           // 2. Ask the web API to open a Chargily checkout for the deposit
+          // Fresh token — the cached one may have expired (would 401 the checkout).
+          const { data: { session: fresh } } = await supabase.auth.getSession();
+          const accessToken = fresh?.access_token ?? session.access_token;
           const res = await fetch(`${WEB_API}/api/payments/chargily/import-checkout`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              Authorization: `Bearer ${session.access_token}`,
+              Authorization: `Bearer ${accessToken}`,
             },
             body: JSON.stringify({
               import_request_id: orderId,
@@ -160,6 +171,27 @@ export default function AbroadOrderScreen() {
             <Text style={styles.productTitle} numberOfLines={2}>{params.product_title}</Text>
             <Text style={styles.productPlatform}>{params.product_platform}</Text>
           </View>
+        </View>
+
+        {/* Delivery address */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Delivery Address</Text>
+          <TextInput
+            style={styles.addrInput}
+            value={address}
+            onChangeText={setAddress}
+            placeholder="Street, building, apartment, city"
+            placeholderTextColor="#9ca3af"
+            multiline
+          />
+          <TextInput
+            style={[styles.addrInput, { minHeight: 0 }]}
+            value={phone}
+            onChangeText={setPhone}
+            placeholder="Phone number for delivery"
+            placeholderTextColor="#9ca3af"
+            keyboardType="phone-pad"
+          />
         </View>
 
         {/* Price breakdown */}
@@ -290,6 +322,11 @@ const styles = StyleSheet.create({
 
   card: { backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#e5e7eb', padding: 14, marginBottom: 14 },
   cardTitle: { fontSize: 14, fontWeight: '700', color: '#111827', marginBottom: 10 },
+  addrInput: {
+    borderWidth: 1, borderColor: '#d1d5db', borderRadius: 10,
+    paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: '#111827',
+    minHeight: 56, marginBottom: 8, textAlignVertical: 'top',
+  },
   row: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
   rowLabel: { fontSize: 13, color: '#6b7280' },
   rowValue: { fontSize: 13, fontWeight: '700', color: '#111827' },

@@ -143,8 +143,6 @@ export function AppTabBar() {
             </View>
           )}
         </View>
-        <Text style={[styles.labelAr, active && styles.labelActive]}>{tab.ar}</Text>
-        <Text style={[styles.label, active && styles.labelActive]}>{tab.name}</Text>
       </TouchableOpacity>
     );
   };
@@ -178,8 +176,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 2,
-    paddingBottom: 2,
+    paddingVertical: 8,
   },
   labelAr: {
     fontSize: 11,

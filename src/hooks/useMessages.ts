@@ -193,7 +193,13 @@ export async function getOrCreateConversation(
     .limit(1)
     .maybeSingle();
 
-  if (existing) return existing.id;
+  if (existing) {
+    // Surface the product they just contacted about in the chat.
+    if (listingId) {
+      await supabase.from('conversations').update({ listing_id: listingId }).eq('id', existing.id);
+    }
+    return existing.id;
+  }
 
   const { data: created, error } = await supabase
     .from('conversations')

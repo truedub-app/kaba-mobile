@@ -8,7 +8,6 @@ import { useRouter } from 'expo-router';
 import { FlashList } from '@shopify/flash-list';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { AppHeader } from '@/components/AppHeader';
-import { SearchBar } from '@/components/SearchBar';
 import { Avatar } from '@/components/Avatar';
 import { EmptyState } from '@/components/EmptyState';
 import { useConversations } from '@/src/hooks/useMessages';
@@ -106,12 +105,6 @@ export default function MessagesScreen() {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
         <AppHeader />
-        <SearchBar
-          value=""
-          onChangeText={() => {}}
-          onSubmit={() => router.push('/(tabs)/browse')}
-          placeholder="Search items, categories or locations..."
-        />
         <Text style={styles.pageTitle}>Messages</Text>
         <EmptyState
           emoji="💬"
@@ -127,12 +120,6 @@ export default function MessagesScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <AppHeader />
-      <SearchBar
-        value=""
-        onChangeText={() => {}}
-        onSubmit={() => router.push('/(tabs)/browse')}
-        placeholder="Search items, categories or locations..."
-      />
 
       <Text style={styles.pageTitle}>Messages</Text>
 
@@ -154,7 +141,6 @@ export default function MessagesScreen() {
       <FlashList
         data={filtered}
         keyExtractor={(item) => item.id}
-        estimatedItemSize={80}
         refreshing={refreshing}
         onRefresh={refresh}
         renderItem={renderItem}

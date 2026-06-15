@@ -130,14 +130,19 @@ export default function ChatScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={insets.top + 52}
       >
-        {/* Listing context banner */}
+        {/* Listing context banner — tap to open the product */}
         {conversation?.listing && (
-          <View style={styles.listingBanner}>
+          <TouchableOpacity
+            style={styles.listingBanner}
+            activeOpacity={0.7}
+            onPress={() => router.push(`/listing/${conversation.listing.id}`)}
+          >
             <Ionicons name="pricetag-outline" size={13} color="#15803d" />
             <Text style={styles.listingBannerText} numberOfLines={1}>
               re: {conversation.listing.title}
             </Text>
-          </View>
+            <Ionicons name="chevron-forward" size={14} color="#15803d" />
+          </TouchableOpacity>
         )}
 
         {loading ? (
@@ -163,7 +168,7 @@ export default function ChatScreen() {
         )}
 
         {/* Input bar */}
-        <View style={styles.inputBar}>
+        <View style={[styles.inputBar, { paddingBottom: (insets.bottom || 8) }]}>
           <TouchableOpacity
             style={styles.attachBtn}
             onPress={handleImagePick}

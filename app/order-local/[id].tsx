@@ -129,11 +129,15 @@ export default function OrderLocalScreen() {
       if (payMethod === 'chargily') {
         const orderId = await createOrder(uid, null);
         try {
+          // Use a freshly-refreshed token — the one cached in the store may have
+          // expired, which would 401 the checkout (web auto-refreshes; the app didn't).
+          const { data: { session: fresh } } = await supabase.auth.getSession();
+          const accessToken = fresh?.access_token ?? session.access_token;
           const res = await fetch(`${WEB_API}/api/payments/chargily/import-checkout`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              Authorization: `Bearer ${session.access_token}`,
+              Authorization: `Bearer ${accessToken}`,
             },
             body: JSON.stringify({
               import_request_id: orderId,
